@@ -1,8 +1,8 @@
 package elevalgo
 
 import (
+	. "distributed_elevator/elevio"
 	"fmt"
-	."distributed_elevator/elevio"
 )
 
 func fsm_setAllLights(es Elevator) {
