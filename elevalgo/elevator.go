@@ -1,8 +1,8 @@
 package elevalgo
 
 import (
-	"fmt"
 	. "distributed_elevator/elevio"
+	"fmt"
 )
 
 const N_FLOORS = 4
