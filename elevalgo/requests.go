@@ -1,7 +1,7 @@
-package requests
+package elevalgo
 
 import (
-	. "Heislab2/elevator"
+	"fmt"
 )
 
 type DirnBehaviourPair struct {
