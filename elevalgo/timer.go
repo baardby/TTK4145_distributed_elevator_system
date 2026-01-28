@@ -19,9 +19,9 @@ func Timer_Start(duration float64) {
 }
 
 func Timer_Stop() {
-    timerActive = false
+	timerActive = false
 }
 
 func Timer_TimedOut() bool {
-    return timerActive && timer_getWallTime() > timerEndTime
+	return timerActive && timer_getWallTime() > timerEndTime
 }

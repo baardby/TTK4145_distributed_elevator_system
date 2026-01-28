@@ -1,130 +1,130 @@
 package elevalgo
 
 import (
-	"fmt"
+	. "distributed_elevator/elevio"
 )
 
 type DirnBehaviourPair struct {
-	Dirn      Dirn
+	Dirn      MotorDirection
 	Behaviour ElevatorBehaviour
 }
 
 // Tidligere h funskjoner
 func Requests_ChooseDirection(e Elevator) DirnBehaviourPair {
-	switch e.Dirn {
-	case D_Up:
-		if requests_above(e) == 1 {
-			return DirnBehaviourPair{Dirn: D_Up, Behaviour: EB_Moving}
-		} else if requests_here(e) == 1 {
-			return DirnBehaviourPair{Dirn: D_Down, Behaviour: EB_DoorOpen}
-		} else if requests_below(e) == 1 {
-			return DirnBehaviourPair{Dirn: D_Down, Behaviour: EB_Moving}
+	switch e.direction {
+	case MD_Up:
+		if requests_above(e) == true {
+			return DirnBehaviourPair{Dirn: MD_Up, Behaviour: EB_Moving}
+		} else if requests_here(e) == true {
+			return DirnBehaviourPair{Dirn: MD_Down, Behaviour: EB_DoorOpen}
+		} else if requests_below(e) == true {
+			return DirnBehaviourPair{Dirn: MD_Down, Behaviour: EB_Moving}
 		} else {
-			return DirnBehaviourPair{Dirn: D_Stop, Behaviour: EB_Idle}
+			return DirnBehaviourPair{Dirn: MD_Stop, Behaviour: EB_Idle}
 		}
-	case D_Down:
-		if requests_below(e) == 1 {
-			return DirnBehaviourPair{Dirn: D_Down, Behaviour: EB_Moving}
-		} else if requests_here(e) == 1 {
-			return DirnBehaviourPair{Dirn: D_Up, Behaviour: EB_DoorOpen}
-		} else if requests_above(e) == 1 {
-			return DirnBehaviourPair{Dirn: D_Up, Behaviour: EB_Moving}
+	case MD_Down:
+		if requests_below(e) == true {
+			return DirnBehaviourPair{Dirn: MD_Down, Behaviour: EB_Moving}
+		} else if requests_here(e) == true {
+			return DirnBehaviourPair{Dirn: MD_Up, Behaviour: EB_DoorOpen}
+		} else if requests_above(e) == true {
+			return DirnBehaviourPair{Dirn: MD_Up, Behaviour: EB_Moving}
 		} else {
-			return DirnBehaviourPair{Dirn: D_Stop, Behaviour: EB_Idle}
+			return DirnBehaviourPair{Dirn: MD_Stop, Behaviour: EB_Idle}
 		}
 
-	case D_Stop:
-		if requests_here(e) == 1 {
-			return DirnBehaviourPair{Dirn: D_Stop, Behaviour: EB_DoorOpen}
-		} else if requests_above(e) == 1 {
-			return DirnBehaviourPair{Dirn: D_Up, Behaviour: EB_Moving}
-		} else if requests_below(e) == 1 {
-			return DirnBehaviourPair{Dirn: D_Down, Behaviour: EB_Moving}
+	case MD_Stop:
+		if requests_here(e) == true {
+			return DirnBehaviourPair{Dirn: MD_Stop, Behaviour: EB_DoorOpen}
+		} else if requests_above(e) == true {
+			return DirnBehaviourPair{Dirn: MD_Up, Behaviour: EB_Moving}
+		} else if requests_below(e) == true {
+			return DirnBehaviourPair{Dirn: MD_Down, Behaviour: EB_Moving}
 		} else {
-			return DirnBehaviourPair{Dirn: D_Stop, Behaviour: EB_Idle}
+			return DirnBehaviourPair{Dirn: MD_Stop, Behaviour: EB_Idle}
 		}
 	default:
-		return DirnBehaviourPair{Dirn: D_Stop, Behaviour: EB_Idle}
+		return DirnBehaviourPair{Dirn: MD_Stop, Behaviour: EB_Idle}
 	}
 
 }
 
 func Requests_ShouldStop(e Elevator) bool {
-	switch e.Dirn {
-	case D_Down:
-		return e.Requests[e.Floor][B_HallDown] != 0 ||
-			e.Requests[e.Floor][B_Cab] != 0 ||
-			requests_below(e) == 0
+	switch e.direction {
+	case MD_Down:
+		return e.requests[e.floor][BT_HallDown] != false ||
+			e.requests[e.floor][BT_Cab] != false ||
+			requests_below(e) == false
 
-	case D_Up:
-		return e.Requests[e.Floor][B_HallUp] != 0 ||
-			e.Requests[e.Floor][B_Cab] != 0 ||
-			requests_above(e) == 0
+	case MD_Up:
+		return e.requests[e.floor][BT_HallUp] != false ||
+			e.requests[e.floor][BT_Cab] != false ||
+			requests_above(e) == false
 
-	case D_Stop:
+	case MD_Stop:
 	default:
 		return true
 	}
 	return false
 }
 
-func Request_ShouldClearImmediately(e Elevator, btn_floor int, btn_type Button) bool {
-	return e.Floor == btn_floor && ((e.Dirn == D_Up && btn_type == B_HallUp) ||
-		(e.Dirn == D_Down && btn_type == B_HallDown) ||
-		e.Dirn == D_Stop ||
-		btn_type == B_Cab)
+func Request_ShouldClearImmediately(e Elevator, btn_floor int, btn_type ButtonType) bool {
+	return e.floor == btn_floor && ((e.direction == MD_Up && btn_type == BT_HallUp) ||
+		(e.direction == MD_Down && btn_type == BT_HallDown) ||
+		e.direction == MD_Stop ||
+		btn_type == BT_Cab)
 }
 
 func Requests_ClearAtCurrentFloor(e Elevator) Elevator {
-	e.Requests[e.Floor][B_Cab] = 0
-	switch e.Dirn {
-	case D_Up:
-		if requests_above(e) == 0 && e.Requests[e.Floor][B_HallUp] == 0 {
-			e.Requests[e.Floor][B_HallDown] = 0
+	e.requests[e.floor][BT_Cab] = false
+	switch e.direction {
+	case MD_Up:
+		if requests_above(e) == false && e.requests[e.floor][BT_HallUp] == false {
+			e.requests[e.floor][BT_HallDown] = false
 		}
-		e.Requests[e.Floor][B_HallUp] = 0
-	case D_Down:
-		if requests_below(e) == 0 && e.Requests[e.Floor][B_HallDown] == 0 {
-			e.Requests[e.Floor][B_HallUp] = 0
+		e.requests[e.floor][BT_HallUp] = false
+	case MD_Down:
+		if requests_below(e) == false && e.requests[e.floor][BT_HallDown] == false {
+			e.requests[e.floor][BT_HallUp] = false
 		}
-		e.Requests[e.Floor][B_HallDown] = 0
-	case D_Stop:
+		e.requests[e.floor][BT_HallDown] = false
+	case MD_Stop:
 	default:
-		e.Requests[e.Floor][B_HallUp] = 0
-		e.Requests[e.Floor][B_HallDown] = 0
+		e.requests[e.floor][BT_HallUp] = false
+		e.requests[e.floor][BT_HallDown] = false
 	}
 	return e
 }
 
 //Filer som var i .c fil
 
-func requests_above(e Elevator) int {
-	for f := e.Floor + 1; f < N_FLOORS; f++ {
+func requests_above(e Elevator) bool {
+	for f := e.floor + 1; f < N_FLOORS; f++ {
 		for btn := 0; btn < N_BUTTONS; btn++ {
-			if e.Requests[f][btn] != 0 {
-				return 1
+			if e.requests[f][btn] != false {
+				return true
 			}
 		}
 	}
-	return 0
+	return false
 }
 
-func requests_below(e Elevator) int {
-	for f := 0; f < e.Floor; f++ {
+func requests_below(e Elevator) bool {
+	for f := 0; f < e.floor; f++ {
 		for btn := 0; btn < N_BUTTONS; btn++ {
-			if e.Requests[f][btn] == 1 {
-				return 1
+			if e.requests[f][btn] == true {
+				return true
 			}
 		}
 	}
-	return 0
+	return false
 }
 
-func requests_here(e Elevator) int {
+func requests_here(e Elevator) bool {
 	for btn := 0; btn < N_BUTTONS; btn++ {
-		if e.Requests[e.Floor][btn] != 0 {
-			return 1
+		if e.requests[e.floor][btn] != false {
+			return true
 		}
 	}
-	return 0
+	return false
 }

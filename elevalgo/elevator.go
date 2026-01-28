@@ -44,11 +44,11 @@ func Elevator_BehaviourToString(eb ElevatorBehaviour) string {
 func Elevator_MotorDirectionToString(dirn MotorDirection) string {
 	switch dirn {
 	case MD_Down:
-		return "D_Down"
+		return "MD_Down"
 	case MD_Stop:
-		return "D_Stop"
+		return "MD_Stop"
 	case MD_Up:
-		return "D_Up"
+		return "MD_Up"
 	default:
 		return "Undefined direction"
 	}
