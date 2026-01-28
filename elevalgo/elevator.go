@@ -17,15 +17,15 @@ const (
 )
 
 type Config struct {
-	doorOpenDuration_s float64
+	DoorOpenDuration_s float64
 }
 
 type Elevator struct {
-	floor     int
-	direction MotorDirection
-	requests  [N_FLOORS][N_BUTTONS]bool
-	behaviour ElevatorBehaviour
-	config    Config
+	Floor     int
+	Direction MotorDirection
+	Requests  [N_FLOORS][N_BUTTONS]bool
+	Behaviour ElevatorBehaviour
+	Config    Config
 }
 
 func Elevator_BehaviourToString(eb ElevatorBehaviour) string {
@@ -69,9 +69,9 @@ func Elevator_ButtonToString(btn ButtonType) string {
 
 func (elevator *Elevator) PrintState() {
 	fmt.Printf(" +--------------------+\n")
-	fmt.Printf("  |floor = %-2d          |\n", elevator.floor)
-	fmt.Printf("  |dirn  = %-12.12s|\n", Elevator_MotorDirectionToString(elevator.direction))
-	fmt.Printf("  |behav = %-12.12s|\n", Elevator_BehaviourToString(elevator.behaviour))
+	fmt.Printf("  |floor = %-2d          |\n", elevator.Floor)
+	fmt.Printf("  |dirn  = %-12.12s|\n", Elevator_MotorDirectionToString(elevator.Direction))
+	fmt.Printf("  |behav = %-12.12s|\n", Elevator_BehaviourToString(elevator.Behaviour))
 	fmt.Printf(" +--------------------+\n")
 	fmt.Printf("  |  | up  | dn  | cab |\n")
 	for floor := N_FLOORS - 1; floor >= 0; floor-- {
@@ -79,7 +79,7 @@ func (elevator *Elevator) PrintState() {
 			if floor == N_FLOORS-1 && btn == int(BT_HallUp) || floor == 0 && btn == int(BT_HallDown) {
 				fmt.Print("|	")
 			} else {
-				if elevator.requests[floor][btn] {
+				if elevator.Requests[floor][btn] {
 					fmt.Print("| # ")
 				} else {
 					fmt.Print("| - ")
@@ -94,11 +94,11 @@ func (elevator *Elevator) PrintState() {
 func Elevator_Uninitialized() Elevator {
 	Init("localhost:15657", N_FLOORS)
 	return Elevator{
-		floor:     -1,
-		direction: MD_Stop,
-		behaviour: EB_Idle,
-		config: Config{
-			doorOpenDuration_s: 3.0,
+		Floor:     -1,
+		Direction: MD_Stop,
+		Behaviour: EB_Idle,
+		Config: Config{
+			DoorOpenDuration_s: 3.0,
 		},
 	}
 }
