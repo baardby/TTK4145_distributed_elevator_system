@@ -39,3 +39,8 @@ package main //Må endres hvis det puttes inn i en mappe
 //		Barriers?
 //		Update requests_queue
 //		return: none
+
+//func newRequest
+//		input: request
+//		legg til å køen
+//		return: none
