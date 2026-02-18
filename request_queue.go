@@ -5,7 +5,10 @@ package main //Må endres hvis det puttes inn i en mappe
 //		Barriers?
 
 //type request							//Hver og en bestilling er av denne typen
-// 		attr: floor, button_type, elevator, progress
+// 		floor
+// 		button_type
+// 		elevator
+// 		progress
 
 //type requests_queue					//Hele køen, SKAL DELES (Stor bokstav)
 //		attr: list of requests
