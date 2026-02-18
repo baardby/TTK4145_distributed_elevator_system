@@ -30,12 +30,8 @@ func Fsm_OnRequestButtonPress(e *Elevator, btn_floor int, btn_type ButtonType) {
 		} else {
 			e.Requests[btn_floor][btn_type] = true
 		}
-		break
-
 	case EB_Moving:
 		e.Requests[btn_floor][btn_type] = true
-		break
-
 	case EB_Idle:
 		e.Requests[btn_floor][btn_type] = true
 		pair := Requests_ChooseDirection(*e)
@@ -46,16 +42,10 @@ func Fsm_OnRequestButtonPress(e *Elevator, btn_floor int, btn_type ButtonType) {
 			Elevator_DoorLight(true)
 			Timer_Start(e.Config.DoorOpenDuration_s)
 			*e = Requests_ClearAtCurrentFloor(*e)
-			break
-
 		case EB_Moving:
 			Elevator_MotorDirection(e.Direction)
-			break
-
 		case EB_Idle:
-			break
 		}
-		break
 	}
 
 	fsm_setAllLights(*e)
@@ -82,9 +72,7 @@ func Fsm_OnFloorArrival(e *Elevator, newFloor int) {
 			fsm_setAllLights(*e)
 			e.Behaviour = EB_DoorOpen
 		}
-		break
 	default:
-		break
 	}
 
 	fmt.Println("\nNew state:")
@@ -106,20 +94,14 @@ func Fsm_OnDoorTimeout(e *Elevator) {
 			Timer_Start(e.Config.DoorOpenDuration_s)
 			*e = Requests_ClearAtCurrentFloor(*e)
 			fsm_setAllLights(*e)
-			break
 		case EB_Moving:
 			Elevator_DoorLight(false)
 			Elevator_MotorDirection(e.Direction)
-			break
 		case EB_Idle:
 			Elevator_DoorLight(false)
 			Elevator_MotorDirection(e.Direction)
-			break
 		}
-
-		break
 	default:
-		break
 	}
 
 	fmt.Println("\nNew state:")

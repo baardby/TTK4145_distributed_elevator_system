@@ -1,4 +1,4 @@
-package networkExample
+package network
 
 import (
 	"distributed_elevator/network/bcast"
