@@ -1,4 +1,4 @@
-package main //Må endres hvis det puttes inn i en mappe
+package costfns //Må endres hvis det puttes inn i en mappe
 
 // func costFunction				//finn den beste heisen, kalles av elevator driver
 //		input: order		//floor and btntype
