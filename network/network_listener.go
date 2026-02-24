@@ -75,7 +75,7 @@ func Network_ListenerFSM(newPeerCh chan<- string) {
 		recvAddr, recvMsg := listener.readFromNetwork()
 		if !(recvAddr.IP.String() == listener.MyIP) {
 			newPeerCh <- recvAddr.IP.String()
-			testPrintRecvMsg(&recvMsg)
+			//testPrintRecvMsg(&recvMsg) // For testing
 		}
 	}
 }
