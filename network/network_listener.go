@@ -27,10 +27,10 @@ func (listener *NetworkListener) networkListenerInit() {
 	var myAddr *net.UDPAddr
 
 	listener.MyPort = "20003"
-	listener.MyIP, err = LocalIP()
+	listener.MyIP, err = LocalIP() // Save our local IP to be able to filter out these messages afterwards
 
-	myAddr, err = net.ResolveUDPAddr("udp4", listener.MyIP+":"+listener.MyPort)
-	if err != nil { // ADD ERROR HANDLING
+	myAddr, err = net.ResolveUDPAddr("udp4", "0.0.0.0"+":"+listener.MyPort) // We have to bind to 0.0.0.0 to be able to pickup broadcasts
+	if err != nil {                                                         // ADD ERROR HANDLING
 		log.Fatalf("Failed to bind UDP socket %v", err)
 	}
 
@@ -47,7 +47,10 @@ func (listener *NetworkListener) readFromNetwork() (recvAddr *net.UDPAddr, recvM
 	if err != nil { // ADD ERROR HANDLING
 		log.Fatalf("Message error: %v", err)
 	}
-	fmt.Println("Received n:", msgSize)
+
+	if recvAddr.IP.String() == listener.MyIP { // Eliminating broadcasts to myself
+		return
+	}
 
 	recvMsg = reconstructMessageFromSlice(msgBuffer, msgSize)
 
@@ -70,8 +73,10 @@ func Network_ListenerFSM(newPeerCh chan<- string) {
 
 	for {
 		recvAddr, recvMsg := listener.readFromNetwork()
-		newPeerCh <- recvAddr.IP.String()
-		//testPrintRecvMsg(&recvMsg)
+		if !(recvAddr.IP.String() == listener.MyIP) {
+			newPeerCh <- recvAddr.IP.String()
+			testPrintRecvMsg(&recvMsg)
+		}
 	}
 }
 

@@ -99,7 +99,7 @@ func Network_SenderFSM(newPeerCh <-chan string) {
 			}
 		case <-ticker.C:
 			sender.broadcastOnNetwork(elevator, msgToSend)
-			//sender.testPrintPeerList()
+			sender.testPrintPeerList()
 		}
 	}
 }
