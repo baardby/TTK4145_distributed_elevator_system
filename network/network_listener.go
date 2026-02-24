@@ -1,11 +1,10 @@
 package network
 
 import (
-	"bytes"
 	. "distributed_elevator/elevalgo"
 	. "distributed_elevator/elevator_states"
 	. "distributed_elevator/network/localip"
-	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -48,6 +47,7 @@ func (listener *NetworkListener) readFromNetwork() (recvAddr *net.UDPAddr, recvM
 	if err != nil { // ADD ERROR HANDLING
 		log.Fatalf("Message error: %v", err)
 	}
+	fmt.Println("Received n:", msgSize)
 
 	recvMsg = reconstructMessageFromSlice(msgBuffer, msgSize)
 
@@ -55,8 +55,10 @@ func (listener *NetworkListener) readFromNetwork() (recvAddr *net.UDPAddr, recvM
 }
 
 func reconstructMessageFromSlice(msgBuffer []byte, msgSize int) (recvMsg Message) {
-	reader := bytes.NewReader(msgBuffer[:msgSize])
-	binary.Read(reader, binary.LittleEndian, &recvMsg)
+	err := json.Unmarshal(msgBuffer[:msgSize], &recvMsg)
+	if err != nil {
+		fmt.Println("unmarshal error:", err)
+	}
 
 	return
 }
@@ -69,11 +71,11 @@ func Network_ListenerFSM(newPeerCh chan<- string) {
 	for {
 		recvAddr, recvMsg := listener.readFromNetwork()
 		newPeerCh <- recvAddr.IP.String()
-		testPrintRecvMsg(recvMsg)
+		//testPrintRecvMsg(&recvMsg)
 	}
 }
 
-func testPrintRecvMsg(recvMsg Message) {
+func testPrintRecvMsg(recvMsg *Message) {
 	fmt.Println("------")
 	fmt.Println(recvMsg.Peer.Floor)
 	fmt.Println(Elevator_BehaviourToString(recvMsg.Peer.Behaviour))

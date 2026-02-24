@@ -1,11 +1,10 @@
 package network
 
 import (
-	"bytes"
 	. "distributed_elevator/elevalgo"
 	. "distributed_elevator/elevator_states"
 	. "distributed_elevator/elevio"
-	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -26,6 +25,7 @@ func (sender *NetworkSender) networkSenderInit() {
 	var err error
 
 	sender.NumberOfPeers = 0
+	sender.ListOfPeers = make(map[string]int)
 	sender.DestPort = "20003"
 	sender.DestIP = "255.255.255.255"
 
@@ -41,8 +41,7 @@ func (sender *NetworkSender) networkSenderInit() {
 }
 
 func (sender *NetworkSender) broadcastOnNetwork(myself Elevator, msg Message) error {
-	_, err := sender.MyConn.WriteToUDP(constructMessageToSlice(myself, msg), sender.DestAddr) //UNCOMMENT AFTER TEST
-	//_, err := sender.MyConn.WriteToUDP([]byte("Hello from fedora!"), sender.DestAddr) //COMMENT OUT AFTER TEST
+	_, err := sender.MyConn.WriteToUDP(constructMessageToSlice(myself, msg), sender.DestAddr)
 	if err != nil { // ADD ERROR HANDLING
 		log.Fatalf("Sending message error: %v", err)
 	}
@@ -56,10 +55,12 @@ func constructMessageToSlice(myself Elevator, msg Message) []byte {
 	msg.Peer.Direction = myself.Direction
 	msg.Peer.Alive = true
 
-	var buf bytes.Buffer
-	binary.Write(&buf, binary.LittleEndian, msg)
+	data, err := json.Marshal(msg)
+	if err != nil {
+		fmt.Println("marshal error:", err)
+	}
 
-	return buf.Bytes()
+	return data
 }
 
 func Network_SenderFSM(newPeerCh <-chan string) {
@@ -98,7 +99,7 @@ func Network_SenderFSM(newPeerCh <-chan string) {
 			}
 		case <-ticker.C:
 			sender.broadcastOnNetwork(elevator, msgToSend)
-			sender.testPrintPeerList()
+			//sender.testPrintPeerList()
 		}
 	}
 }
