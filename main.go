@@ -1,10 +1,11 @@
 package main
 
 import (
-	. "distributed_elevator/elevalgo"
-	. "distributed_elevator/elevio"
-	"fmt"
-	"time"
+	//. "distributed_elevator/elevalgo"
+	//. "distributed_elevator/elevio"
+	. "distributed_elevator/network"
+	//"fmt"
+	//"time"
 )
 
 func main() {
@@ -60,7 +61,7 @@ func main() {
 			}
 		}*/
 
-	fmt.Println("Started!")
+	/*fmt.Println("Started!")
 
 	var elevator Elevator = Elevator_Uninitialized()
 	var inputPollRate_ms int = 25
@@ -99,5 +100,10 @@ func main() {
 		}
 
 		time.Sleep(time.Duration(inputPollRate_ms) * time.Millisecond)
-	}
+	}*/
+
+	// Test Code
+	newPeerCh := make(chan string)
+	go Network_ListenerFSM(newPeerCh)
+	go Network_SenderFSM(newPeerCh)
 }

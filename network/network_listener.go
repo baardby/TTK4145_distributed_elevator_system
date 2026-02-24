@@ -1,12 +1,21 @@
 package network
 
 import (
+	"bytes"
 	. "distributed_elevator/elevalgo"
-	. "distributed_elevator/elevio"
+	. "distributed_elevator/elevator_states"
 	. "distributed_elevator/network/localip"
+	"encoding/binary"
+	"fmt"
 	"log"
 	"net"
 )
+
+type Message struct {
+	Peer              ElevatorPeer
+	RequestStates     [N_FLOORS][N_BUTTONS]byte
+	RequestAssignedTo [N_FLOORS][N_BUTTONS]byte
+}
 
 type NetworkListener struct {
 	MyPort string
@@ -14,15 +23,7 @@ type NetworkListener struct {
 	MyConn *net.UDPConn // Remember to add defer myConn.Close() in the loop the listener is run
 }
 
-type ElevatorPeer struct { // MOVE TO ELEVATOR STATES
-	Floor     int
-	Direction MotorDirection
-	Behaviour ElevatorBehaviour
-}
-
-// MAYBE ADD A TABLE OF PEERS AND THEIR IPs AND IDs
-
-func (listener *NetworkListener) NetworkListenerInit() {
+func (listener *NetworkListener) networkListenerInit() {
 	var err error
 	var myAddr *net.UDPAddr
 
@@ -38,8 +39,7 @@ func (listener *NetworkListener) NetworkListenerInit() {
 	// ADD ERROR HANDLING
 }
 
-func (listener *NetworkListener) ReadFromNetwork() (peer ElevatorPeer, requestStates [N_FLOORS][N_BUTTONS]byte, requestAssignedTo [N_FLOORS][N_BUTTONS]byte) { // MAYBE RETURN ID OF ELEVATOR PEER ALSO
-	var recvAddr *net.UDPAddr
+func (listener *NetworkListener) readFromNetwork() (recvAddr *net.UDPAddr, recvMsg Message) { // MAYBE RETURN ID OF ELEVATOR PEER ALSO
 	var err error
 	var msgSize int
 	msgBuffer := make([]byte, 1024)
@@ -49,14 +49,35 @@ func (listener *NetworkListener) ReadFromNetwork() (peer ElevatorPeer, requestSt
 		log.Fatalf("Message error: %v", err)
 	}
 
-	// LOGIC THAT REGISTERS WHO SENT IT WITH recvAddr
+	recvMsg = reconstructMessageFromSlice(msgBuffer, msgSize)
 
-	return reconstructMessageFromSlice(msgBuffer, msgSize)
+	return
 }
 
-func reconstructMessageFromSlice(msgBuffer []byte, msgSize int) (peer ElevatorPeer, requestStates [N_FLOORS][N_BUTTONS]byte, requestAssignedTo [N_FLOORS][N_BUTTONS]byte) {
-	// DO STUFF
+func reconstructMessageFromSlice(msgBuffer []byte, msgSize int) (recvMsg Message) {
+	reader := bytes.NewReader(msgBuffer[:msgSize])
+	binary.Read(reader, binary.LittleEndian, &recvMsg)
+
 	return
+}
+
+func Network_ListenerFSM(newPeerCh chan<- string) {
+	var listener NetworkListener
+	listener.networkListenerInit()
+	defer listener.MyConn.Close()
+
+	for {
+		recvAddr, recvMsg := listener.readFromNetwork()
+		newPeerCh <- recvAddr.IP.String()
+		testPrintRecvMsg(recvMsg)
+	}
+}
+
+func testPrintRecvMsg(recvMsg Message) {
+	fmt.Println("------")
+	fmt.Println(recvMsg.Peer.Floor)
+	fmt.Println(Elevator_BehaviourToString(recvMsg.Peer.Behaviour))
+	fmt.Println(Elevator_MotorDirectionToString(recvMsg.Peer.Direction))
 }
 
 //func setUpSocketListnere			//Skal være en go routine
