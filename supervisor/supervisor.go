@@ -1,4 +1,4 @@
-package main //Må endres hvis det puttes inn i en mappe
+package supervisor //Må endres hvis det puttes inn i en mappe
 
 //func prossessPairs
 //		input: none

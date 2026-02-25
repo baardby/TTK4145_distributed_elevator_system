@@ -1,11 +1,11 @@
-package elevator_states //Må endres hvis det puttes inn i en mappe
+package supervisor //Må endres hvis det puttes inn i en mappe
 
 import (
 	. "distributed_elevator/elevalgo"
 	. "distributed_elevator/elevio"
 )
 
-const NumElevators = 3
+const N_ELEVATORS = 3
 
 type ElevatorPeer struct {
 	Floor     int
@@ -16,7 +16,7 @@ type ElevatorPeer struct {
 }
 
 type ElevatorStates struct {
-	Peers [NumElevators]ElevatorPeer
+	Peers [N_ELEVATORS]ElevatorPeer
 }
 
 func (elevatorStates *ElevatorStates) UpdateElevatorStates(elevatorNum int, floor int, direction MotorDirection, behaviour ElevatorBehaviour) {

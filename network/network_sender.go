@@ -2,8 +2,8 @@ package network
 
 import (
 	. "distributed_elevator/elevalgo"
-	. "distributed_elevator/elevator_states"
 	. "distributed_elevator/elevio"
+	. "distributed_elevator/supervisor"
 	"encoding/json"
 	"fmt"
 	"log"
