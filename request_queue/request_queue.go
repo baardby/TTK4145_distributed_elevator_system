@@ -1,4 +1,4 @@
-package main //Må endres hvis det puttes inn i en mappe
+package request_queue //Må endres hvis det puttes inn i en mappe
 
 import (
 	. "distributed_elevator/elevalgo"

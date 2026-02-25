@@ -20,11 +20,16 @@ type NetworkListener struct {
 	MyPort string
 	MyIP   string
 	MyConn *net.UDPConn // Remember to add defer myConn.Close() in the loop the listener is run
+	NumberOfPeers int
+	ListOfPeers   map[string]int
 }
 
 func (listener *NetworkListener) networkListenerInit() {
 	var err error
 	var myAddr *net.UDPAddr
+
+	listener.NumberOfPeers = 0
+	listener.ListOfPeers = make(map[string]int)
 
 	listener.MyPort = "20003"
 	listener.MyIP, err = LocalIP() // Save our local IP to be able to filter out these messages afterwards
@@ -38,7 +43,7 @@ func (listener *NetworkListener) networkListenerInit() {
 	// ADD ERROR HANDLING
 }
 
-func (listener *NetworkListener) readFromNetwork() (recvAddr *net.UDPAddr, recvMsg Message) { // MAYBE RETURN ID OF ELEVATOR PEER ALSO
+func (listener *NetworkListener) readFromNetwork() (recvAddr *net.UDPAddr, recvMsg Message) {
 	var err error
 	var msgSize int
 	msgBuffer := make([]byte, 1024)
@@ -76,6 +81,13 @@ func Network_ListenerFSM(newPeerCh chan<- string) {
 		if !(recvAddr.IP.String() == listener.MyIP) {
 			newPeerCh <- recvAddr.IP.String()
 			//testPrintRecvMsg(&recvMsg) // For testing
+
+			_, isInPeerList := listener.ListOfPeers[recvAddr.IP.String()]
+			if !isInPeerList {
+				listener.NumberOfPeers++
+				listener.ListOfPeers[recvAddr.IP.String()] = listener.NumberOfPeers
+			}
+			//listener.testPrintPeerList()
 		}
 	}
 }
@@ -85,6 +97,14 @@ func testPrintRecvMsg(recvMsg *Message) {
 	fmt.Println(recvMsg.Peer.Floor)
 	fmt.Println(Elevator_BehaviourToString(recvMsg.Peer.Behaviour))
 	fmt.Println(Elevator_MotorDirectionToString(recvMsg.Peer.Direction))
+}
+
+func (listener *NetworkListener) testPrintPeerList() {
+	fmt.Println("----Alive peers----")
+	for key, value := range listener.ListOfPeers {
+		fmt.Println(key, value)
+	}
+	fmt.Println("-------------------")
 }
 
 //func setUpSocketListnere			//Skal være en go routine

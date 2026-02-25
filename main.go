@@ -2,10 +2,9 @@ package main
 
 import (
 	. "distributed_elevator/elevalgo"
-	. "distributed_elevator/elevio"
 	. "distributed_elevator/network"
+	. "distributed_elevator/request_queue"
 	"fmt"
-	"time"
 )
 
 func main() {
@@ -63,47 +62,17 @@ func main() {
 
 	fmt.Println("Started!")
 
-	// Test Code
+	// Creating communication channels
 	newPeerCh := make(chan string)
+	elevatorStateCh := make(chan Elevator)
+	requestQueueCh := make(chan RequestQueue)
+
+	updateQueueCh := make(chan [N_FLOORS][N_BUTTONS]bool)
+	newButtonPress := make(chan [2]int)
+
+	// Starting goroutines
 	go Network_ListenerFSM(newPeerCh)
-	go Network_SenderFSM(newPeerCh)
+	go Network_SenderFSM(elevatorStateCh, requestQueueCh)
 
-	var elevator Elevator = Elevator_Uninitialized()
-	var inputPollRate_ms int = 25
-
-	// con_load
-
-	if Elevator_FloorSensor() == -1 {
-		Fsm_OnInitBetweenFloors(&elevator)
-	}
-	prevFloor := -1
-	var prevOrder [N_FLOORS][N_BUTTONS]bool
-
-	for {
-		// Request button
-		for floor := 0; floor < N_FLOORS; floor++ {
-			for btn := 0; btn < N_BUTTONS; btn++ {
-				value := Elevator_RequestButton(floor, ButtonType(btn))
-				if value && value != prevOrder[floor][btn] {
-					Fsm_OnRequestButtonPress(&elevator, floor, ButtonType(btn))
-				}
-				prevOrder[floor][btn] = value
-			}
-		}
-
-		// Floor sensor
-		floor := Elevator_FloorSensor()
-		if floor != -1 && floor != prevFloor {
-			Fsm_OnFloorArrival(&elevator, floor)
-		}
-		prevFloor = floor
-
-		// Timer
-		if Timer_TimedOut() {
-			Timer_Stop()
-			Fsm_OnDoorTimeout(&elevator)
-		}
-
-		time.Sleep(time.Duration(inputPollRate_ms) * time.Millisecond)
-	}
+	go Elevalgo_ElevatorControllerLoop(updateQueueCh, newButtonPress)
 }

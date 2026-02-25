@@ -21,13 +21,11 @@ type Config struct {
 }
 
 type Elevator struct {
-	Floor              int
-	Direction          MotorDirection
-	Requests           [N_FLOORS][N_BUTTONS]bool
-	RequestsState      [N_FLOORS][N_BUTTONS]byte
-	RequestsAssignedTo [N_FLOORS][N_BUTTONS]byte
-	Behaviour          ElevatorBehaviour
-	Config             Config
+	Floor     int
+	Direction MotorDirection
+	Requests  [N_FLOORS][N_BUTTONS]bool
+	Behaviour ElevatorBehaviour
+	Config    Config
 }
 
 func Elevator_BehaviourToString(eb ElevatorBehaviour) string {

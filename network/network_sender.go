@@ -4,6 +4,7 @@ import (
 	. "distributed_elevator/elevalgo"
 	. "distributed_elevator/elevio"
 	. "distributed_elevator/supervisor"
+	. "distributed_elevator/request_queue"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -12,20 +13,18 @@ import (
 )
 
 type NetworkSender struct {
-	DestID        int // DO WE NEED THIS?
-	DestIP        string
-	DestPort      string
-	DestAddr      *net.UDPAddr
-	MyConn        *net.UDPConn // Remember to add defer myConn.Close() in the loop the sender is run
-	NumberOfPeers int
-	ListOfPeers   map[string]int
+	DestID       int // DO WE NEED THIS?
+	DestIP       string
+	DestPort     string
+	DestAddr     *net.UDPAddr
+	MyConn       *net.UDPConn // Remember to add defer myConn.Close() in the loop the sender is run
+	Myself       Elevator
+	Requestqueue RequestQueue
 }
 
 func (sender *NetworkSender) networkSenderInit() {
 	var err error
 
-	sender.NumberOfPeers = 0
-	sender.ListOfPeers = make(map[string]int)
 	sender.DestPort = "20003"
 	sender.DestIP = "255.255.255.255"
 
@@ -63,7 +62,7 @@ func constructMessageToSlice(myself Elevator, msg Message) []byte {
 	return data
 }
 
-func Network_SenderFSM(newPeerCh <-chan string) {
+func Network_SenderFSM(elevatorStateCh <-chan Elevator, requestQueueCh <-chan RequestQueue) {
 	var sender NetworkSender
 	sender.networkSenderInit()
 	defer sender.MyConn.Close()
@@ -91,25 +90,14 @@ func Network_SenderFSM(newPeerCh <-chan string) {
 
 	for {
 		select {
-		case newPeer := <-newPeerCh:
-			_, isInPeerList := sender.ListOfPeers[newPeer]
-			if !isInPeerList {
-				sender.NumberOfPeers++
-				sender.ListOfPeers[newPeer] = sender.NumberOfPeers
-			}
+		case <-elevatorStateCh:
+			// Update our elevator object which is to be sent
+		case <-requestQueueCh:
+			// Update our requestqueue which is to be sent
 		case <-ticker.C:
 			sender.broadcastOnNetwork(elevator, msgToSend)
-			//sender.testPrintPeerList()
 		}
 	}
-}
-
-func (sender *NetworkSender) testPrintPeerList() {
-	fmt.Println("----Alive peers----")
-	for key, value := range sender.ListOfPeers {
-		fmt.Println(key, value)
-	}
-	fmt.Println("-------------------")
 }
 
 //func setUpSocketSender			//skal være go-routine
