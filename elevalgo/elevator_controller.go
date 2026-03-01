@@ -20,9 +20,9 @@ func Elevalgo_ElevatorControllerLoop(updateQueueCh <-chan [N_FLOORS][N_BUTTONS]b
 	for {
 		select {
 		case newRequests := <-updateQueueCh:
-			for i := 0; i < N_FLOORS; i++ {
-				for j := 0; j < N_BUTTONS; j++ {
-					elevator.Requests[i][j] = newRequests[i][j]
+			for floor := 0; floor < N_FLOORS; floor++ {
+				for btn := 0; btn < N_BUTTONS; btn++ {
+					elevator.Requests[floor][btn] = newRequests[floor][btn]
 				}
 			}
 		default:
