@@ -2,6 +2,7 @@ package main
 
 import (
 	. "distributed_elevator/elevalgo"
+	. "distributed_elevator/elevio"
 	. "distributed_elevator/network"
 	. "distributed_elevator/request_queue"
 	"fmt"

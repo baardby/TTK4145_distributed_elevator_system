@@ -5,9 +5,6 @@ import (
 	"fmt"
 )
 
-const N_FLOORS = 4
-const N_BUTTONS = 3
-
 type ElevatorBehaviour int
 
 const (
@@ -21,11 +18,12 @@ type Config struct {
 }
 
 type Elevator struct {
-	Floor     int
-	Direction MotorDirection
-	Requests  [N_FLOORS][N_BUTTONS]bool
-	Behaviour ElevatorBehaviour
-	Config    Config
+	Floor       int
+	Direction   MotorDirection
+	Requests    [N_FLOORS][N_BUTTONS]bool
+	Behaviour   ElevatorBehaviour
+	Obstruction bool
+	Config      Config
 }
 
 func Elevator_BehaviourToString(eb ElevatorBehaviour) string {

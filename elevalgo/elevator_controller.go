@@ -2,30 +2,32 @@ package elevalgo //Må endres hvis det puttes inn i en mappe
 
 import (
 	. "distributed_elevator/elevio"
-	"time"
 )
 
-func Elevalgo_ElevatorControllerLoop(updateQueueCh <-chan [N_FLOORS][N_BUTTONS]bool, newButtonPress chan<- [2]int) {
+func Elevalgo_ElevatorControllerLoop(updateQueue <-chan [N_FLOORS][N_BUTTONS]bool,
+	drvFloors <-chan int,
+	drvObstr <-chan bool,
+	drvStop <-chan bool) {
+
 	var elevator Elevator = Elevator_Uninitialized()
-	var inputPollRate_ms int = 25
-
-	// con_load
-
-	if Elevator_FloorSensor() == -1 {
-		Fsm_OnInitBetweenFloors(&elevator)
-	}
-	prevFloor := -1
-	var prevOrder [N_FLOORS][N_BUTTONS]bool
 
 	for {
 		select {
-		case newRequests := <-updateQueueCh:
+		case newRequests := <-updateQueue:
 			for floor := 0; floor < N_FLOORS; floor++ {
 				for btn := 0; btn < N_BUTTONS; btn++ {
 					elevator.Requests[floor][btn] = newRequests[floor][btn]
 				}
 			}
-		default:
+			// Set lights accordingly to this new queue
+		case newFloor := <-drvFloors:
+			Fsm_OnFloorArrival(&elevator, newFloor)
+		case <-drvObstr:
+			// Do stuff
+		case <-drvStop:
+			// Do stuff
+
+			/*default:
 			// Request button
 			for floor := 0; floor < N_FLOORS; floor++ {
 				for btn := 0; btn < N_BUTTONS; btn++ {
@@ -51,7 +53,7 @@ func Elevalgo_ElevatorControllerLoop(updateQueueCh <-chan [N_FLOORS][N_BUTTONS]b
 				Fsm_OnDoorTimeout(&elevator)
 			}
 
-			time.Sleep(time.Duration(inputPollRate_ms) * time.Millisecond)
+			time.Sleep(time.Duration(inputPollRate_ms) * time.Millisecond)*/
 		}
 	}
 }
