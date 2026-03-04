@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func processPairs() {
+func backupPhase() {
 
 	//Set up UDP connection
 	localHostID := "127.0.0.1"
@@ -57,12 +57,17 @@ func processPairs() {
 
 	// starte en ny terminal med en ny prosess
 	pid := os.Getpid()
+	path, err := os.Getwd()
+	if err != nil {
+		fmt.Println("Feil ved henting av eksekverbar fil:", err)
+		return
+	}
 	cmd := exec.Command(
 		"gnome-terminal",
 		"--",
 		"bash",
-		"-c", //LEGG TIL RIKTIG PATH HER!!!
-		fmt.Sprintf("cd /path/to/project && go run main.go %d; exec bash", pid),
+		"-c",
+		fmt.Sprintf("cd %s && go run main.go %d; exec bash", path, pid),
 	)
 	err = cmd.Start()
 	if err != nil {
