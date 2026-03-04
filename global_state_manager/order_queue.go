@@ -312,10 +312,18 @@ func (q *OrderQueue) resetOrder(event Event?) {
 // If using flags instead of matrices, 
 // make a general function that does the shifting to improve readability
 
+// Ensure that btnEvent: {floor = 0, btnType = BT_HALL_DOWN} and {floor = 3, btnType = BT_HALL_UP}
+// is not possible
+
+// Implement for Cab orders as well
+
 // When making global_state_manager loop in other go file, talk to Magnus.
 // Idea: First step is to check if queue exists, if not wait 2 seconds and the generate
 // In 2 second interval, if some other queue is sent to listener, make this the queue
+
 /* ---------------------------------------------------------------------------------*/
+
+/* START COMMENT
 
 type OrderState int
 const buttonsPerFloor = 2
@@ -415,6 +423,8 @@ select {
 		do stuff
 	case sendQueueToSender<- bigQueue:
 }
+
+END COMMENT */
 
 
 // Elevator controller:
