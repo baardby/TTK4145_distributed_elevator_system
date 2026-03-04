@@ -7,10 +7,13 @@ import (
 	"time"
 )
 
+const N_FLOORS = 4
+const N_BUTTONS = 3
+const N_ELEVATORS = 3
+
 const _pollRate = 20 * time.Millisecond
 
 var _initialized bool = false
-var _numFloors int = 4
 var _mtx sync.Mutex
 var _conn net.Conn
 
@@ -40,7 +43,6 @@ func Init(addr string, numFloors int) {
 		fmt.Println("Driver already initialized!")
 		return
 	}
-	_numFloors = numFloors
 	_mtx = sync.Mutex{}
 	var err error
 	_conn, err = net.Dial("tcp", addr)
@@ -70,55 +72,55 @@ func SetStopLamp(value bool) {
 	write([4]byte{5, toByte(value), 0, 0})
 }
 
-func PollButtons(receiver chan<- ButtonEvent) {
-	prev := make([][3]bool, _numFloors)
+func PollButtons(buttonPressEvent chan<- ButtonEvent) {
+	prevButtonPress := make([][N_BUTTONS]bool, N_FLOORS)
 	for {
 		time.Sleep(_pollRate)
-		for f := 0; f < _numFloors; f++ {
-			for b := ButtonType(0); b < 3; b++ {
-				v := GetButton(b, f)
-				if v != prev[f][b] && v != false {
-					receiver <- ButtonEvent{f, ButtonType(b)}
+		for floor := 0; floor < N_FLOORS; floor++ {
+			for btn := ButtonType(0); btn < N_BUTTONS; btn++ {
+				newButtonPress := GetButton(btn, floor)
+				if newButtonPress != prevButtonPress[floor][btn] && newButtonPress != false {
+					buttonPressEvent <- ButtonEvent{floor, ButtonType(btn)}
 				}
-				prev[f][b] = v
+				prevButtonPress[floor][btn] = newButtonPress
 			}
 		}
 	}
 }
 
-func PollFloorSensor(receiver chan<- int) {
-	prev := -1
+func PollFloorSensor(newFloorEvent chan<- int) {
+	prevFloor := -1
 	for {
 		time.Sleep(_pollRate)
-		v := GetFloor()
-		if v != prev && v != -1 {
-			receiver <- v
+		currentFloor := GetFloor()
+		if currentFloor != prevFloor && currentFloor != -1 {
+			newFloorEvent <- currentFloor
 		}
-		prev = v
+		prevFloor = currentFloor
 	}
 }
 
-func PollStopButton(receiver chan<- bool) {
-	prev := false
+func PollStopButton(stopEvent chan<- bool) {
+	prevStopState := false
 	for {
 		time.Sleep(_pollRate)
-		v := GetStop()
-		if v != prev {
-			receiver <- v
+		currentStopState := GetStop()
+		if currentStopState != prevStopState {
+			stopEvent <- currentStopState
 		}
-		prev = v
+		prevStopState = currentStopState
 	}
 }
 
-func PollObstructionSwitch(receiver chan<- bool) {
-	prev := false
+func PollObstructionSwitch(obstrEvent chan<- bool) {
+	prevObstrState := false
 	for {
 		time.Sleep(_pollRate)
-		v := GetObstruction()
-		if v != prev {
-			receiver <- v
+		currentObstrState := GetObstruction()
+		if currentObstrState != prevObstrState {
+			obstrEvent <- currentObstrState
 		}
-		prev = v
+		prevObstrState = currentObstrState
 	}
 }
 

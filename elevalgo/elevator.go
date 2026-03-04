@@ -90,7 +90,7 @@ func (elevator *Elevator) PrintState() {
 }
 
 func Elevator_Uninitialized() Elevator {
-	Init("localhost:15657", N_FLOORS)
+	//Init("localhost:15657", N_FLOORS)
 	return Elevator{
 		Floor:     -1,
 		Direction: MD_Stop,
