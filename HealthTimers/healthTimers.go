@@ -1,6 +1,7 @@
 package HealthTimers
 
 import (
+	"distributed_elevator/elevalgo"
 	"time"
 )
 
@@ -19,26 +20,14 @@ type TimerEvent struct {
 	ElevatorID int
 }
 
-type TimerCommandType int
-
-const (
-	ElevatorAlive TimerCommandType = iota
-	MovingFromStopped
-	Stopped
-	DrovePastFloor
-)
-
-type TimerCommand struct {
-	Type       TimerCommandType
-	ElevatorID int
-}
-
-type countdown struct {
+type timer struct {
 	startTime time.Time
 	active    bool
 }
 
-type elevatorTimers [N_ELEVATORS]countdown
+type elevatorTimers [N_ELEVATORS]timer
+
+type movingTimer timer
 
 // func checkElevatorTimers returnerer ID til timeren som har gått ut, -1 ellers
 func (elevatorTimers *elevatorTimers) checkElevatorTimers() int {
@@ -50,8 +39,6 @@ func (elevatorTimers *elevatorTimers) checkElevatorTimers() int {
 	return -1
 }
 
-type movingTimer countdown
-
 func (movingTimer *movingTimer) amIStuck() bool {
 	if movingTimer.active && time.Since(movingTimer.startTime) > 5*time.Second {
 		return true
@@ -59,22 +46,29 @@ func (movingTimer *movingTimer) amIStuck() bool {
 	return false
 }
 
-func (timerCommand *TimerCommand) apply(elevatorTimers *elevatorTimers, movingTimer *movingTimer) {
-	switch timerCommand.Type {
-	case ElevatorAlive:
-		elevatorTimers[timerCommand.ElevatorID].startTime = time.Now()
-		elevatorTimers[timerCommand.ElevatorID].active = true
-	case MovingFromStopped:
-		movingTimer.startTime = time.Now()
-		movingTimer.active = true
-	case Stopped:
-		movingTimer.active = false
-	case DrovePastFloor:
-		movingTimer.startTime = time.Now()
-	}
+func updateElevatorTimer(elevatorTimers *elevatorTimers, elevatorID int) {
+	elevatorTimers[elevatorID].startTime = time.Now()
+	elevatorTimers[elevatorID].active = true
 }
 
-func HealthTimers(TimerCommandChan <-chan TimerCommand, TimerEventChan chan<- TimerEvent) {
+func updateMovingTimer(movingTimer *movingTimer, elevator elevalgo.Elevator) {
+	if movingTimer.active {
+		if elevator.Floor != -1 {
+			movingTimer.startTime = time.Now()
+		}
+		if elevator.Behaviour != elevalgo.EB_Moving {
+			movingTimer.active = false
+		}
+	} else {
+		if elevator.Behaviour == elevalgo.EB_Moving {
+			movingTimer.startTime = time.Now()
+			movingTimer.active = true
+		}
+	}
+
+}
+
+func HealthTimers(peerAliveCh <-chan int, updateElevatorEvt <-chan elevalgo.Elevator, TimerEventChan chan<- TimerEvent) {
 	ticker := time.NewTicker(100 * time.Millisecond)
 
 	movingTimer := movingTimer{startTime: time.Now(), active: false}
@@ -87,9 +81,10 @@ func HealthTimers(TimerCommandChan <-chan TimerCommand, TimerEventChan chan<- Ti
 	// Lag løkke for å lage timers og holde styr på forskjellig stuff.
 	for {
 		select {
-		case timerCommand := <-TimerCommandChan:
-			timerCommand.apply(&elevatorTimers, &movingTimer)
-
+		case peerAlive := <-peerAliveCh:
+			updateElevatorTimer(&elevatorTimers, peerAlive)
+		case elevator := <-updateElevatorEvt:
+			updateMovingTimer(&movingTimer, elevator)
 		case <-ticker.C:
 			if id := elevatorTimers.checkElevatorTimers(); id != -1 {
 				TimerEventChan <- TimerEvent{
