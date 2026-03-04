@@ -5,9 +5,6 @@ import (
 	"fmt"
 )
 
-const N_FLOORS = 4
-const N_BUTTONS = 3
-
 type ElevatorBehaviour int
 
 const (
@@ -21,11 +18,12 @@ type Config struct {
 }
 
 type Elevator struct {
-	Floor     int
-	Direction MotorDirection
-	Requests  [N_FLOORS][N_BUTTONS]bool
-	Behaviour ElevatorBehaviour
-	Config    Config
+	Floor       int
+	Direction   MotorDirection
+	Requests    [N_FLOORS][N_BUTTONS]bool
+	Behaviour   ElevatorBehaviour
+	Obstruction bool
+	Config      Config
 }
 
 func Elevator_BehaviourToString(eb ElevatorBehaviour) string {
@@ -92,7 +90,6 @@ func (elevator *Elevator) PrintState() {
 }
 
 func Elevator_Uninitialized() Elevator {
-	Init("localhost:15657", N_FLOORS)
 	return Elevator{
 		Floor:     -1,
 		Direction: MD_Stop,
@@ -103,19 +100,23 @@ func Elevator_Uninitialized() Elevator {
 	}
 }
 
-func Elevator_FloorSensor() int {
+func (elevator *Elevator) SetObstr(currentObstrState bool) {
+	elevator.Obstruction = currentObstrState
+}
+
+func Elevator_FloorSensor() int { // REMOVE
 	return GetFloor()
 }
 
-func Elevator_RequestButton(floor int, btn ButtonType) bool {
+func Elevator_RequestButton(floor int, btn ButtonType) bool { // REMOVE
 	return GetButton(btn, floor)
 }
 
-func Elevator_StopButton() bool {
+func Elevator_StopButton() bool { // REMOVE
 	return GetStop()
 }
 
-func Elevator_Obstruction() bool {
+func Elevator_Obstruction() bool { // REMOVE
 	return GetObstruction()
 }
 

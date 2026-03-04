@@ -2,8 +2,9 @@ package main
 
 import (
 	. "distributed_elevator/elevalgo"
-	. "distributed_elevator/network"
-	. "distributed_elevator/request_queue"
+	. "distributed_elevator/elevio"
+
+	//. "distributed_elevator/network"
 	"fmt"
 )
 
@@ -62,17 +63,34 @@ func main() {
 
 	fmt.Println("Started!")
 
-	// Creating communication channels
-	newPeerCh := make(chan string)
-	elevatorStateCh := make(chan Elevator)
-	requestQueueCh := make(chan RequestQueue)
+	Init("localhost:15657", N_FLOORS)
 
-	updateQueueCh := make(chan [N_FLOORS][N_BUTTONS]bool)
-	newButtonPress := make(chan [2]int)
+	// Creating communication channels
+	newButtonEvent := make(chan ButtonEvent)
+	newFloorEvent := make(chan int)
+	stopEvent := make(chan bool)
+	obstrEvent := make(chan bool)
+
+	//newPeerCh := make(chan string)
+	//elevatorStateCh := make(chan Elevator)
+	//requestQueueCh := make(chan RequestQueue)
+
+	updateQueueEvent := make(chan [N_FLOORS][N_BUTTONS]bool)
 
 	// Starting goroutines
-	go Network_ListenerFSM(newPeerCh)
-	go Network_SenderFSM(elevatorStateCh, requestQueueCh)
 
-	go Elevalgo_ElevatorControllerLoop(updateQueueCh, newButtonPress)
+	// IO goroutines
+	go PollButtons(newButtonEvent)
+	go PollFloorSensor(newFloorEvent)
+	go PollObstructionSwitch(obstrEvent)
+	go PollStopButton(stopEvent)
+
+	// Elevator algorithm goroutines
+	go Elevalgo_ElevatorControllerLoop(updateQueueEvent, newFloorEvent, stopEvent, obstrEvent, newButtonEvent)
+
+	// Network goroutines
+	//go Network_ListenerFSM(newPeerCh)
+	//go Network_SenderFSM(elevatorStateCh, requestQueueCh)
+
+	select {}
 }
