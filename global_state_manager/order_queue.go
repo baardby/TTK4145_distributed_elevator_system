@@ -8,7 +8,7 @@ import (
 )
 
 const noElevatorAssigned = -1
-const allFlagsSet uint8 = 00000111	// Assumes N_ELEVATORS = 3
+const allFlagsSet uint8 = 0b00000111	// Assumes N_ELEVATORS = 3
 
 type OrderState int
 
@@ -19,21 +19,21 @@ const (
 	Completed                       // Order completed by at least one
 )
 
+// type HallOrderStateForArbitraryElevator [N_FLOORS][buttonsPerFloor]state
+
 type HallOrder struct {
 	AssignedTo	int		// Corresponding to elevator ID, -1 if unassigned
 	Active		bool	// Order exists (state is not None)
-	Elevator1state [N_FLOORS][buttonsPerFloor]state
-	Elevator2state [N_FLOORS][buttonsPerFloor]state
-	Elevator3state [N_FLOORS][buttonsPerFloor]state
+	// HallOrderStateForAllElevators [N_ELEVATORS]HallOrderStateForArbitraryElevator
 	SeenBy		uint8	// Bit i represents whether elevator i has seen order
 	CompletedBy uint8	// Bit i represents whether elevator i has completed order
-	ClearedBy 	uint8	// Bit i represents whether elevator i has cleared order
+	ClearedBy 	uint8	// Bit i represents whether elevator i is ready to clear order
 }
 
 type CabOrder struct {
 	AssignedTo	int		// Will always be self elevator
 	Active		bool	// Order exists (state is not None)
-	seenBy		uint8	// Bit i represents whether elevator i has seen order
+	SeenBy		uint8	// Bit i represents whether elevator i has seen order
 	CompletedBy uint8	// Bit i represents whether elevator i has completed order
 	ClearedBy 	uint8	// Bit i represents whether elevator i has cleared order
 }
@@ -44,7 +44,7 @@ type OrderQueue struct {
 	HallOrderList	[N_FLOORS][buttonsPerFloor]HallOrder
 }
 
-func generateNewOrderQueue() OrderQueue {
+func GenerateNewOrderQueue() OrderQueue {
 	newQueue := OrderQueue{}
 	
 	for floor := 0; floor < N_FLOORS; floor++ {
@@ -79,32 +79,64 @@ func (order HallOrder) DerivedOrderState() OrderState {
 	return Unconfirmed
 }
 
-func (order *HallOrder) MarkSeenByMe(myID int) {
-	if !order.Active {
-		return
-	}
-	order.SeenBy = 1 << myID
-}
+// Not needed, already part of other functions
+// func (order *HallOrder) MarkSeenByMe(myID int) {
+// 	if !order.Active {
+// 		return
+// 	}
+// 	order.SeenBy |= 1 << myID
+// }
 
-func 
-	currentState = inputQueue.HallOrderList[floor][button]
-	switch currentState{
-		case None:
-			if allAreNone() || allAllAreNoneOrUnconfirmed() {
-				inputQueueinputQueue.HallOrderList[floor][button] = None
-				return inputQueue
-			}
-		case Unconfirmed:
-			if allAreUnconfirmed() || allAreUnconfirmedOrConfirmed() {
-				inputQueueinputQueue.HallOrderList[floor][button] = Unconfirmed
-				return inputQueue
-			}
+// New idea with matrices for state
+// func MergeHallOrder(myHallOrder HallOrder, peerHallOrder1 HallOrder, peerHallOrder2 HallOrder, floor int, button int) HallOrder {
+// 	out.Active = myHallOrder.Active || peerHallOrder1.Active || peerHallOrder2.Active	// If any order active, keep this information
+
+// 	// If order not active, return a clean inactive state
+// 	if !out.Active {	
+// 		out.AssignedTo = noElevatorAssigned
+// 		out.SeenBy = 0
+// 		out.CompletedBy = 0
+// 		out.ClearedBy = 0
+// 		return out
+// 	}
+
+// 	currentState = myHallOrder.HallOrderList[floor][button]
+// 	switch currentState{
+// 		case None:
+// 			if anyInNextState() && noneInPrevState() {
+// 				inputQueueinputQueue.HallOrderList[floor][button] = Unconfirmed
+// 				return inputQueue
+// 			}
+// 		case Unconfirmed:
+// 			if allAreUnconfirmed() || allAreUnconfirmedOrConfirmed() {
+// 				inputQueueinputQueue.HallOrderList[floor][button] = Unconfirmed
+// 				return inputQueue
+// 			}	
+// 	}
+
+// 	switch {
+// 	case h1.AssignedTo != noElevatorAssigned && h2.AssignedTo == noElevatorAssigned:
+// 		out.AssignedTo = h1.AssignedTo
+// 	case h1.AssignedTo == noElevatorAssigned:
+// 		out.AssignedTo = h2.AssignedTo
+// 	case h1.AssignedTo == h2.AssignedTo:
+// 		out.AssignedTo = h1.AssignedTo
+// 	default:
+// 		// To prevent conflicting messages, choose lowest ID
+// 		if h1.AssignedTo < h2.AssignedTo {
+// 			out.AssignedTo = h1.AssignedTo
+// 		} else {
+// 			out.AssignedTo = h2.AssignedTo
+// 		}
+// 	}
+// 	return out
+// }
 
 // !!! Better variable names
-// Function that merges HallOrder h1 and h2
-func MergeHallOrder(h1 HallOrder, h2 HallOrder) HallOrder {
+// Function that merges HallOrder h1 and h2, call function with h1 as own order in normal use case 
+func MergeHallOrder(h1 HallOrder, h2 HallOrder, myID int) HallOrder {
 	out := h1
-	out.Active = h1.Active || h2.Active	// If any order active, keep this information
+	out.Active |= h2.Active	// If any order active, keep this information
 
 	// If order not active, return a clean inactive state
 	if !out.Active {	
@@ -134,18 +166,18 @@ func MergeHallOrder(h1 HallOrder, h2 HallOrder) HallOrder {
 			out.AssignedTo = h2.AssignedTo
 		}
 	}
+	out.SeenBy |= 1 << myID
 	return out
 }
 
 // Function that merges queues q1 and q2
-// !!! Find better variable names
-func MergeQueue(q1 OrderQueue, q2 OrderQueue) OrderQueue {
+func MergeQueue(q1 OrderQueue, q2 OrderQueue, myId int) OrderQueue {
 	out := q1
 	for floor := 0; floor < N_FLOORS; floor++ {
 		for btn := 0; btn < buttonsPerFloor; btn++ {
 			h1 := q1.HallOrderList[floor][btn]
 			h2 := q2.HallOrderList[floor][btn]
-			out.HallOrderList[floor][btn] = MergeHallOrder(h1, h2)
+			out.HallOrderList[floor][btn] = MergeHallOrder(h1, h2, myID)
 		}
 	}
 	return out
@@ -157,15 +189,15 @@ func (q *OrderQueue) AppendNewOrder(btnEv ButtonEvent, assignTo int, myID int) {
 	btn := int(btnEv.Button)
 
 	if f < 0 || f >= N_FLOORS {
-		fmt.Println("Attempted to append invalid floor:", f)
+		fmt.Println("Attempted to append order at invalid floor: ", f)
 		return
 	}
 	if btnEv.Button != BT_HallUp && btnEv.Button != BT_HallDown {
-		fmt.Println("Not hall button")
+		fmt.Println("Not hall button.")
 		return
 	}
 	if assignTo < 0 || assignTo >= N_ELEVATORS {
-		fmt.Println("Attempted to append invalid assignedTo:", assignTo)
+		fmt.Println("Attempted to append invalid assignedTo: ", assignTo)
 		return
 	}
 
@@ -182,6 +214,107 @@ func (q *OrderQueue) AppendNewOrder(btnEv ButtonEvent, assignTo int, myID int) {
 	order.SeenBy |= 1 << myID
 }
 
+// !!! Must fix event parameter, maybe take in button on that floor when completing?
+// Function that marks an order as completed by myself if myID corresponds with the order's assignedTo
+func (q *OrderQueue) MarkOrderCompletedByMe(event Event?, myID int) {
+	f := event.Floor
+	btn := int(event.Button)
+
+	if f < 0 || f >= N_FLOORS {
+		fmt.Println("Attempted to clear order at invalid floor: ", f)
+		return
+	}
+	if event.Button != BT_HallUp && event.Button != BT_HallDown {
+		fmt.Println("Not hall button.")
+		return
+	}
+
+	order := &q.HallOrderList[f][btn]
+
+	if !order.Active {
+		return
+	}
+	if myID != order.AssignedTo { // Preventing elevators from marking complete if not assigned
+		return
+	}
+	
+	order.CompletedBy |= 1 << myID
+	order.SeenBy |= 1 << myID
+}
+// !!! Must fix event parameter, maybe take in button on that floor when clearing?
+// Function that marks an order as cleared by myself if order's assignedTo has already marked complete
+func (q *OrderQueue) MarkOrderClearedByMe(event Event?, myID int) {
+	f := event.Floor
+	btn := int(event.Button)
+
+	if f < 0 || f >= N_FLOORS {
+		fmt.Println("Attempted to clear order at invalid floor: ", f)
+		return
+	}
+	if event.Button != BT_HallUp && event.Button != BT_HallDown {
+		fmt.Println("Not hall button.")
+		return
+	}
+
+	order := &q.HallOrderList[f][btn]
+
+	if !order.Active {
+		return
+	}
+	if order.AssignedTo == noElevatorAssigned {
+		return
+	}
+	// Check if order's assignedTo elevator has completed it
+	if order.CompletedBy == (1 << order.AssignedTo) {
+		order.ClearedBy |= 1 << myID
+	}
+}
+
+// !!! Again, need to fix event parameter
+// Function that attempts to reset order if cleared by all
+func (q *OrderQueue) resetOrder(event Event?) {
+	f := event.Floor
+	btn := int(event.Button)
+
+	if f < 0 || f >= N_FLOORS {
+		fmt.Println("Attempted to clear order at invalid floor: ", f)
+		return
+	}
+	if event.Button != BT_HallUp && event.Button != BT_HallDown {
+		fmt.Println("Not hall button.")
+		return
+	}
+
+	order := &q.HallOrderList[f][btn]
+
+	if !order.Active {
+		return
+	}
+	if order.AssignedTo == noElevatorAssigned {
+		return
+	}
+	if order.CompletedBy != (1 << order.AssignedTo) {
+		return
+	}
+
+	// Check if all elevators are ready to clear
+	if order.ClearedBy == allFlagsSet {
+		order.Active =  false
+		order.AssignedTo = noElevatorAssigned
+		order.SeenBy = 0
+		order.CompletedBy = 0
+		order.ClearedBy=  0
+	}
+}
+
+// !!! NOTES !!!
+
+// If using flags instead of matrices, 
+// make a general function that does the shifting to improve readability
+
+// When making global_state_manager loop in other go file, talk to Magnus.
+// Idea: First step is to check if queue exists, if not wait 2 seconds and the generate
+// In 2 second interval, if some other queue is sent to listener, make this the queue
 /* ---------------------------------------------------------------------------------*/
 
 type OrderState int
