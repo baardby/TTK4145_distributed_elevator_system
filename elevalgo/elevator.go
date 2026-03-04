@@ -101,20 +101,12 @@ func Elevator_Uninitialized() Elevator {
 	}
 }
 
-func Elevator_FloorSensor() int {
-	return GetFloor()
+func (elevator *Elevator) SetObstr(currentObstrState bool) {
+	elevator.Obstruction = currentObstrState
 }
 
-func Elevator_RequestButton(floor int, btn ButtonType) bool {
-	return GetButton(btn, floor)
-}
-
-func Elevator_StopButton() bool {
-	return GetStop()
-}
-
-func Elevator_Obstruction() bool {
-	return GetObstruction()
+func (elevator *Elevator) GetObstr() bool {
+	return elevator.Obstruction
 }
 
 func Elevator_FloorIndicator(floor int) {

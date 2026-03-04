@@ -73,7 +73,7 @@ func SetStopLamp(value bool) {
 }
 
 func PollButtons(buttonPressEvent chan<- ButtonEvent) {
-	prevButtonPress := make([][N_BUTTONS]bool, N_FLOORS)
+	var prevButtonPress [N_FLOORS][N_BUTTONS]bool
 	for {
 		time.Sleep(_pollRate)
 		for floor := 0; floor < N_FLOORS; floor++ {

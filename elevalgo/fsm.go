@@ -85,21 +85,26 @@ func Fsm_OnDoorTimeout(e *Elevator) {
 
 	switch e.Behaviour {
 	case EB_DoorOpen:
-		pair := Requests_ChooseDirection(*e)
-		e.Direction = pair.Dirn
-		e.Behaviour = pair.Behaviour
 
-		switch e.Behaviour {
-		case EB_DoorOpen:
+		if !e.Obstruction {
+			pair := Requests_ChooseDirection(*e)
+			e.Direction = pair.Dirn
+			e.Behaviour = pair.Behaviour
+
+			switch e.Behaviour {
+			case EB_DoorOpen:
+				Timer_Start(e.Config.DoorOpenDuration_s)
+				*e = Requests_ClearAtCurrentFloor(*e)
+				fsm_setAllLights(*e)
+			case EB_Moving:
+				Elevator_DoorLight(false)
+				Elevator_MotorDirection(e.Direction)
+			case EB_Idle:
+				Elevator_DoorLight(false)
+				Elevator_MotorDirection(e.Direction)
+			}
+		} else {
 			Timer_Start(e.Config.DoorOpenDuration_s)
-			*e = Requests_ClearAtCurrentFloor(*e)
-			fsm_setAllLights(*e)
-		case EB_Moving:
-			Elevator_DoorLight(false)
-			Elevator_MotorDirection(e.Direction)
-		case EB_Idle:
-			Elevator_DoorLight(false)
-			Elevator_MotorDirection(e.Direction)
 		}
 	default:
 	}

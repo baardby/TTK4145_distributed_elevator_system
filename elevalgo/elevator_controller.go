@@ -37,9 +37,9 @@ func Elevalgo_ElevatorControllerLoop(updateQueueEvent <-chan [N_FLOORS][N_BUTTON
 			fmt.Println(int(newButton.Button))
 			Fsm_OnRequestButtonPress(&elevator, newButton.Floor, newButton.Button)
 		case <-stopEvent:
-			// Do stuff
-		case <-obstrEvent:
-			// Do stuff
+			// Maybe occupy the elevator completely
+		case currentObstrState := <-obstrEvent:
+			elevator.SetObstr(currentObstrState)
 		default:
 			if Timer_TimedOut() {
 				Timer_Stop()
