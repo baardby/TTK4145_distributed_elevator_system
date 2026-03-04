@@ -40,7 +40,8 @@ type countdown struct {
 
 type elevatorTimers [N_ELEVATORS]countdown
 
-func (elevatorTimers *elevatorTimers) checkElevatorTimers() int { //sender -1 om ingen timere har gått ut
+// func checkElevatorTimers returnerer ID til timeren som har gått ut, -1 ellers
+func (elevatorTimers *elevatorTimers) checkElevatorTimers() int {
 	for elevator := 0; elevator < N_ELEVATORS; elevator++ {
 		if elevatorTimers[elevator].active && time.Since(elevatorTimers[elevator].startTime) > 5*time.Second {
 			return elevator
@@ -58,7 +59,7 @@ func (movingTimer *movingTimer) amIStuck() bool {
 	return false
 }
 
-func (timerCommand *TimerCommand) perform(elevatorTimers *elevatorTimers, movingTimer *movingTimer) {
+func (timerCommand *TimerCommand) apply(elevatorTimers *elevatorTimers, movingTimer *movingTimer) {
 	switch timerCommand.Type {
 	case ElevatorAlive:
 		elevatorTimers[timerCommand.ElevatorID].startTime = time.Now()
@@ -87,7 +88,7 @@ func HealthTimers(TimerCommandChan <-chan TimerCommand, TimerEventChan chan<- Ti
 	for {
 		select {
 		case timerCommand := <-TimerCommandChan:
-			timerCommand.perform(&elevatorTimers, &movingTimer)
+			timerCommand.apply(&elevatorTimers, &movingTimer)
 
 		case <-ticker.C:
 			if id := elevatorTimers.checkElevatorTimers(); id != -1 {
