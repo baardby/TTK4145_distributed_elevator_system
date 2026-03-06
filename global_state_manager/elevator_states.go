@@ -5,8 +5,6 @@ import (
 	. "distributed_elevator/elevio"
 )
 
-const N_ELEVATORS = 3
-
 type ElevatorPeer struct {
 	Floor     int
 	Direction MotorDirection
