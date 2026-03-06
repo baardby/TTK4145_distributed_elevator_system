@@ -2,6 +2,7 @@ package network
 
 import (
 	. "distributed_elevator/elevalgo"
+	. "distributed_elevator/elevio"
 	. "distributed_elevator/network/localip"
 	. "distributed_elevator/supervisor"
 	"encoding/json"
@@ -11,15 +12,16 @@ import (
 )
 
 type Message struct {
+	ID                int
 	Peer              ElevatorPeer
 	RequestStates     [N_FLOORS][N_BUTTONS]byte
 	RequestAssignedTo [N_FLOORS][N_BUTTONS]byte
 }
 
 type NetworkListener struct {
-	MyPort string
-	MyIP   string
-	MyConn *net.UDPConn // Remember to add defer myConn.Close() in the loop the listener is run
+	MyPort        string
+	MyIP          string
+	MyConn        *net.UDPConn // Remember to add defer myConn.Close() in the loop the listener is run
 	NumberOfPeers int
 	ListOfPeers   map[string]int
 }
@@ -71,23 +73,32 @@ func reconstructMessageFromSlice(msgBuffer []byte, msgSize int) (recvMsg Message
 	return
 }
 
-func Network_ListenerFSM(newPeerCh chan<- string) {
+func Network_ListenerFSM(receivedFromPeerEvent chan<- int,
+	receivedMessageEvent chan<- Message) {
 	var listener NetworkListener
 	listener.networkListenerInit()
 	defer listener.MyConn.Close()
 
 	for {
 		recvAddr, recvMsg := listener.readFromNetwork()
+
+		// Filter out our own messages again
 		if !(recvAddr.IP.String() == listener.MyIP) {
-			newPeerCh <- recvAddr.IP.String()
 			//testPrintRecvMsg(&recvMsg) // For testing
 
+			// Adding a new peer to the list
 			_, isInPeerList := listener.ListOfPeers[recvAddr.IP.String()]
 			if !isInPeerList {
 				listener.NumberOfPeers++
-				listener.ListOfPeers[recvAddr.IP.String()] = listener.NumberOfPeers
+				listener.ListOfPeers[recvAddr.IP.String()] = recvMsg.ID
 			}
 			//listener.testPrintPeerList()
+
+			// Notify Supervisor of new msg from peer
+			receivedFromPeerEvent <- recvMsg.ID
+
+			// Send message to global state manager
+			receivedMessageEvent <- recvMsg
 		}
 	}
 }

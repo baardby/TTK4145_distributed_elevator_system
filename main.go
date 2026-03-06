@@ -71,9 +71,10 @@ func main() {
 	stopEvent := make(chan bool)
 	obstrEvent := make(chan bool)
 
-	//newPeerCh := make(chan string)
-	//elevatorStateCh := make(chan Elevator)
-	//requestQueueCh := make(chan RequestQueue)
+	//receivedFromPeerEvent := make(chan int)
+	//receivedMessageEvent := make(chan Message)
+	//newElevStateToSendEvent := make(chan Elevator)
+	//newRequestQueueToSendEvent := make(chan OrderQueue)
 
 	updateQueueEvent := make(chan [N_FLOORS][N_BUTTONS]bool)
 
@@ -89,8 +90,8 @@ func main() {
 	go Elevalgo_ElevatorControllerLoop(updateQueueEvent, newFloorEvent, stopEvent, obstrEvent, newButtonEvent)
 
 	// Network goroutines
-	//go Network_ListenerFSM(newPeerCh)
-	//go Network_SenderFSM(elevatorStateCh, requestQueueCh)
+	//go Network_ListenerFSM(receivedFromPeerEvent, receivedMessageEvent)
+	//go Network_SenderFSM(newElevStateToSendEvent, newRequestQueueToSendEvent)
 
 	select {}
 }
