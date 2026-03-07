@@ -29,11 +29,11 @@ type Elevator struct {
 func Elevator_BehaviourToString(eb ElevatorBehaviour) string {
 	switch eb {
 	case EB_Idle:
-		return "EB_Idle"
+		return "idle"
 	case EB_DoorOpen:
-		return "EB_DoorOpen"
+		return "doorOpen"
 	case EB_Moving:
-		return "EB_Moving"
+		return "moving"
 	default:
 		return "Udefined elevator behaviour"
 	}
@@ -42,11 +42,11 @@ func Elevator_BehaviourToString(eb ElevatorBehaviour) string {
 func Elevator_MotorDirectionToString(dirn MotorDirection) string {
 	switch dirn {
 	case MD_Down:
-		return "MD_Down"
+		return "down"
 	case MD_Stop:
-		return "MD_Stop"
+		return "stop"
 	case MD_Up:
-		return "MD_Up"
+		return "up"
 	default:
 		return "Undefined direction"
 	}
