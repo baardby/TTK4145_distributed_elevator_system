@@ -3,7 +3,8 @@ package cost_fns //Må endres hvis det puttes inn i en mappe
 import (
 	. "distributed_elevator/elevalgo"
 	. "distributed_elevator/elevio"
-	. "distributed_elevator/global_state_manager"
+	. "distributed_elevator/global_state_manager/elevator_states"
+	. "distributed_elevator/global_state_manager/order_queue"
 	"encoding/json"
 	"fmt"
 	"os/exec"

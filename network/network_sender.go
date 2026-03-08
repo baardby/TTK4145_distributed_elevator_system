@@ -3,10 +3,9 @@ package network
 import (
 	. "distributed_elevator/elevalgo"
 	. "distributed_elevator/elevio"
-	. "distributed_elevator/global_state_manager"
-	. "distributed_elevator/supervisor"
-	"encoding/json"
-	"fmt"
+	. "distributed_elevator/global_state_manager/elevator_states"
+	. "distributed_elevator/global_state_manager/order_queue"
+	. "distributed_elevator/network/message"
 	"log"
 	"net"
 	"time"
@@ -40,26 +39,12 @@ func (sender *NetworkSender) networkSenderInit() {
 }
 
 func (sender *NetworkSender) broadcastOnNetwork(myself Elevator, msg Message) error {
-	_, err := sender.MyConn.WriteToUDP(constructMessageToSlice(myself, msg), sender.DestAddr)
+	_, err := sender.MyConn.WriteToUDP(ConstructMessageToSlice(myself, msg), sender.DestAddr)
 	if err != nil { // ADD ERROR HANDLING
 		log.Fatalf("Sending message error: %v", err)
 	}
 
 	return err
-}
-
-func constructMessageToSlice(myself Elevator, msg Message) []byte {
-	msg.Peer.Floor = myself.Floor
-	msg.Peer.Behaviour = myself.Behaviour
-	msg.Peer.Direction = myself.Direction
-	msg.Peer.Alive = true
-
-	data, err := json.Marshal(msg)
-	if err != nil {
-		fmt.Println("marshal error:", err)
-	}
-
-	return data
 }
 
 func Network_SenderFSM(updateElevatorStateEvent <-chan Elevator, updateRequestQueueEvent <-chan OrderQueue) {

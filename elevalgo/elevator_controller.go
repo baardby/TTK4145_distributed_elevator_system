@@ -2,15 +2,20 @@ package elevalgo //Må endres hvis det puttes inn i en mappe
 
 import (
 	. "distributed_elevator/elevio"
+	"time"
 )
 
 func Elevalgo_ElevatorControllerLoop(updateQueueEvent <-chan [N_FLOORS][N_BUTTONS]bool,
 	newFloorEvent <-chan int,
 	stopEvent <-chan bool,
 	obstrEvent <-chan bool,
-	buttonPressEvent <-chan ButtonEvent) {
+	buttonPressEvent <-chan ButtonEvent, // FOR TESTING
+	updateElevatorEvent chan Elevator) {
 
 	var elevator Elevator = Elevator_Uninitialized()
+
+	updateElevatorTicker := time.NewTicker(100 * time.Millisecond) // CHANGE TO CORRECT TIME 50Hz?
+	defer updateElevatorTicker.Stop()
 
 	//startFloor := <- newFloorEvent
 	//if startFloor == -1 {
@@ -33,10 +38,19 @@ func Elevalgo_ElevatorControllerLoop(updateQueueEvent <-chan [N_FLOORS][N_BUTTON
 			Fsm_OnFloorArrival(&elevator, newFloor)
 		case newButton := <-buttonPressEvent:
 			Fsm_OnRequestButtonPress(&elevator, newButton.Floor, newButton.Button)
-		case <-stopEvent:
-			// Maybe occupy the elevator completely
+		case stopButtonState := <-stopEvent:
+			SetStopLamp(stopButtonState) // CAN REMOVE
 		case currentObstrState := <-obstrEvent:
 			elevator.SetObstr(currentObstrState)
+		case <-updateElevatorTicker.C:
+			select {
+				// Try send new update
+			case updateElevatorEvent<-elevator:
+				// Dump the channel if the old message wasn't received
+			default:
+				<-updateElevatorEvent
+				updateElevatorEvent<-elevator
+			}
 		default:
 			if Timer_TimedOut() {
 				Timer_Stop()

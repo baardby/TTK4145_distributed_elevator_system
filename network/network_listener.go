@@ -2,21 +2,12 @@ package network
 
 import (
 	. "distributed_elevator/elevalgo"
-	. "distributed_elevator/elevio"
 	. "distributed_elevator/network/localip"
-	. "distributed_elevator/supervisor"
-	"encoding/json"
+	. "distributed_elevator/network/message"
 	"fmt"
 	"log"
 	"net"
 )
-
-type Message struct {
-	ID                int
-	Peer              ElevatorPeer
-	RequestStates     [N_FLOORS][N_BUTTONS]byte
-	RequestAssignedTo [N_FLOORS][N_BUTTONS]byte
-}
 
 type NetworkListener struct {
 	MyPort        string
@@ -59,16 +50,7 @@ func (listener *NetworkListener) readFromNetwork() (recvAddr *net.UDPAddr, recvM
 		return
 	}
 
-	recvMsg = reconstructMessageFromSlice(msgBuffer, msgSize)
-
-	return
-}
-
-func reconstructMessageFromSlice(msgBuffer []byte, msgSize int) (recvMsg Message) {
-	err := json.Unmarshal(msgBuffer[:msgSize], &recvMsg)
-	if err != nil {
-		fmt.Println("unmarshal error:", err)
-	}
+	recvMsg = ReconstructMessageFromSlice(msgBuffer, msgSize)
 
 	return
 }

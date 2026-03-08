@@ -70,6 +70,7 @@ func main() {
 	newFloorEvent := make(chan int)
 	stopEvent := make(chan bool)
 	obstrEvent := make(chan bool)
+	updateElevatorEvent := make(chan Elevator)
 
 	//receivedFromPeerEvent := make(chan int)
 	//receivedMessageEvent := make(chan Message)
@@ -87,8 +88,13 @@ func main() {
 	go PollStopButton(stopEvent)
 
 	// Elevator algorithm goroutines
-	go Elevalgo_ElevatorControllerLoop(updateQueueEvent, newFloorEvent, stopEvent, obstrEvent, newButtonEvent)
-
+	go Elevalgo_ElevatorControllerLoop(updateQueueEvent, 
+		newFloorEvent,
+		stopEvent,
+		obstrEvent, 
+		newButtonEvent,
+		updateElevatorEvent)
+	
 	// Network goroutines
 	//go Network_ListenerFSM(receivedFromPeerEvent, receivedMessageEvent)
 	//go Network_SenderFSM(newElevStateToSendEvent, newRequestQueueToSendEvent)
