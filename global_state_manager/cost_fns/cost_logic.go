@@ -209,9 +209,9 @@ func testCostLogic() {
 	}
 
 	cabOrders := map[int]AllCabOrders{
-		1: {{None, 1}, {None, 1}, {None, 1}, {Unconfirmed, 1}},
-		2: {{None, 1}, {None, 1}, {Completed, 1}, {None, 1}},
-		3: {{None, 1}, {Confirmed, 1}, {None, 1}, {None, 1}},
+		1: {{State: None, AssignedTo: 1}, {State: None, AssignedTo: 1}, {State: None, AssignedTo: 1}, {State: Unconfirmed, AssignedTo: 1}},
+		2: {{State: None, AssignedTo: 1}, {State: None, AssignedTo: 1}, {State: Completed, AssignedTo: 1}, {State: None, AssignedTo: 1}},
+		3: {{State: None, AssignedTo: 1}, {State: Confirmed, AssignedTo: 1}, {State: None, AssignedTo: 1}, {State: None, AssignedTo: 1}},
 	}
 
 	myId := 1
