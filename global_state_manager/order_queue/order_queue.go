@@ -5,6 +5,8 @@ import (
 	"fmt"
 )
 
+// !!! Should we drop GetOrder functions
+
 // !!! Variable and function names are hard
 
 const (
@@ -65,13 +67,24 @@ func GetCabOrder(queue *OrderQueue, ID int, floor int) Order {
 	return queue.Cab[ID][floor]
 }
 
+func (myQueue *OrderQueue) RetrieveMyOrders(myID int) [N_FLOORS][N_BUTTONS]bool {
+	var orders [N_FLOORS][N_BUTTONS]bool
+	for floor := 0; floor < N_FLOORS; floor++ {
+		for btn := 0; btn < N_BUTTONS; btn++ {
+			if GetHallOrder(myQueue, myID, floor, btn).AssignedTo == myID || GetCabOrder(myQueue, myID, floor).AssignedTo == myID {
+				orders[floor][btn] = true
+			}
+		}
+	}
+	return orders
+}
+
 // When a message is received with an order queue, this function should be called to update the local order queue with the new information. Only updates the orders for the elevator that sent the message, identified by ID.
 func (myQueue *OrderQueue) UpdateOrderQueue(otherQueue OrderQueue, ID int) {
 	if !IsElevatorInQueue(myQueue, ID) {
 		fmt.Println("Attempted to update order queue with elevator not in queue: ", ID)
 		return
 	}
-
 	myQueue.Hall[ID] = otherQueue.Hall[ID]
 	myQueue.Cab[ID] = otherQueue.Cab[ID]
 }
@@ -302,7 +315,7 @@ func CanCabOrderTransitionState(
 	}
 }
 
-func (myQueue *OrderQueue) TransitionQueue(myID int, aliveElevators map[int]bool) {
+func (myQueue *OrderQueue) TransitionMyQueue(myID int, aliveElevators map[int]bool, otherID int) {
 	hallOrders := myQueue.Hall[myID]
 	cabOrders := myQueue.Cab[myID]
 
@@ -312,6 +325,7 @@ func (myQueue *OrderQueue) TransitionQueue(myID int, aliveElevators map[int]bool
 				currentState := GetHallOrder(myQueue, myID, floor, btn).State
 				nextState := (currentState + 1) % numOfOrderStates
 				hallOrders[floor][btn].State = nextState
+
 			}
 		}
 		if CanCabOrderTransitionState(myQueue, myID, aliveElevators, floor) {
@@ -322,4 +336,85 @@ func (myQueue *OrderQueue) TransitionQueue(myID int, aliveElevators map[int]bool
 	}
 	myQueue.Hall[myID] = hallOrders
 	myQueue.Cab[myID] = cabOrders
+}
+
+func (myQueue *OrderQueue) TransitionHallOrders(
+	myID int,
+	aliveElevators map[int]bool,
+	floor int,
+	btn int,
+) bool {
+	hallOrders := myQueue.Hall[myID]
+
+	for floor := 0; floor < N_FLOORS; floor++ {
+		for btn := 0; btn < hallButtonsPerFloor; btn++ {
+			currentState := GetHallOrder(myQueue, myID, floor, btn).State
+
+			switch currentState {
+			case None:
+				for ID, alive := range aliveElevators {
+					if !alive || ID == myID {
+						continue
+					}
+					otherHallOrder := GetHallOrder(myQueue, ID, floor, btn)
+					if otherHallOrder.State == Unconfirmed {
+						hallOrders[floor][btn].State = Unconfirmed
+						hallOrders[floor][btn].AssignedTo = otherHallOrder.AssignedTo
+						myQueue.Hall[myID] = hallOrders
+						return true
+					}
+				}
+				return false
+
+			case Unconfirmed:
+				expectedAssignedTo := GetHallOrder(myQueue, myID, floor, btn).AssignedTo
+
+				for ID, alive := range aliveElevators {
+					if !alive || ID == myID {
+						continue
+					}
+					otherHallOrder := GetHallOrder(myQueue, ID, floor, btn)
+					if otherHallOrder.State == None || otherHallOrder.State == Completed {
+						return false
+					}
+
+					if otherHallOrder.AssignedTo < expectedAssignedTo && otherHallOrder.AssignedTo > noElevatorAssigned {
+						expectedAssignedTo = otherHallOrder.AssignedTo
+					}
+				}
+
+				hallOrders[floor][btn].State = Confirmed
+				hallOrders[floor][btn].AssignedTo = expectedAssignedTo
+				myQueue.Hall[myID] = hallOrders
+				return true
+
+			// Continue from here
+			case Confirmed:
+				for ID, alive := range aliveElevators {
+					if !alive || ID == myID {
+						continue
+					}
+					if GetHallOrder(queue, ID, floor, btn).State == Completed { // Must double check this
+						return true
+					}
+				}
+				return false
+
+			case Completed:
+				for ID, alive := range aliveElevators {
+					if !alive || ID == myID {
+						continue
+					}
+					if GetHallOrder(queue, ID, floor, btn).State == Confirmed {
+						return false
+					}
+				}
+				return true
+			default:
+				fmt.Println("Undefined order state: ", currentState)
+				return false
+			}
+
+		}
+	}
 }
