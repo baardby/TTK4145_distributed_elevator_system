@@ -2,10 +2,9 @@ package HealthTimers
 
 import (
 	"distributed_elevator/elevalgo"
+	. "distributed_elevator/elevio"
 	"time"
 )
-
-const N_ELEVATORS = 3
 
 type TimerEventType int
 
