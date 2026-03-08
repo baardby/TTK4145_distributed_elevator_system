@@ -1,5 +1,6 @@
-package costfns
+package cost_fns
 
+/*
 import (
 	"encoding/json"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 // MIGHT NEED TO RUN ls -l hall_request_assigner/hall_request_assigner
 // chmod +x hall_request_assigner/hall_request_assigner
 // Before use
+
 
 func main() {
 
@@ -69,3 +71,4 @@ func main() {
 		fmt.Printf("%6v :  %+v\n", k, v)
 	}
 }
+*/

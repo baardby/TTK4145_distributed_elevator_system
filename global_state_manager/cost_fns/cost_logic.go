@@ -1,4 +1,4 @@
-package costfns //Må endres hvis det puttes inn i en mappe
+package cost_fns //Må endres hvis det puttes inn i en mappe
 
 import (
 	. "distributed_elevator/elevalgo"
@@ -9,24 +9,6 @@ import (
 	"os/exec"
 	"runtime"
 )
-
-// func costFunction				//finn den beste heisen, kalles av elevator driver
-//		input: order		//floor and btntype
-//		regner ut beste heis
-//		return: elevator with best cost
-
-//func newButtonPress
-//		input: order 		//floor and btntype
-//		kaller costfunction med order
-//		lager nytt element av type request
-//		kaller newRequest fra modul request_queue
-//		return: none
-
-// func redistrubuteRequests 		//iterer alle request som ikke lenger har en heis, og tildel en heis
-//		input: request_queue?
-//		for every request with defect elevator
-//			call calculate cost for
-//		return: none
 
 type HRAElevState struct {
 	Behavior    string `json:"behaviour"`
@@ -40,7 +22,7 @@ type HRAInput struct {
 	States       map[string]HRAElevState `json:"states"`
 }
 
-func assignNewOrder(newOrder ButtonEvent, elevatorStates ElevatorStates, myID int) (IDAssigned int) { // Needs to take in elevator states
+func AssignNewOrder(newOrder ButtonEvent, elevatorStates ElevatorStates, cabOrders map[int][N_FLOORS]OrderState, myID int) (IDAssigned int) { // Needs to take in elevator states
 	switch newOrder.Button {
 	// If it is a CAB order, this elevator should do it.
 	case BT_Cab:
@@ -57,25 +39,29 @@ func assignNewOrder(newOrder ButtonEvent, elevatorStates ElevatorStates, myID in
 			panic("OS not supported")
 		}
 
-		// Lag input til assigner
 		input := makeHRAIInput()
-		// Legg inn den ene ordren
+
 		input.HallRequests[newOrder.Floor][int(newOrder.Button)] = true
-		// Legg inn heisene som er i live
-		// Legg inn de aktive CabOrdrene til hver, eller la det blir tilsendt
+
 		for elevatorPeer := 0; elevatorPeer < N_ELEVATORS; elevatorPeer++ {
-			if (elevatorPeer != myID) && (elevatorStates.Peers[elevatorPeer].Alive) {
-				input.States
+			currentPeerID := elevatorPeer + 1
+			if elevatorStates.Peers[elevatorPeer].Alive {
+				input.States[IDToString(currentPeerID)] = HRAElevState{
+					Behavior:    Elevator_BehaviourToString(elevatorStates.Peers[elevatorPeer].Behaviour),
+					Floor:       elevatorStates.Peers[elevatorPeer].Floor,
+					Direction:   Elevator_MotorDirectionToString(elevatorStates.Peers[elevatorPeer].Direction),
+					CabRequests: extractCabOrder(currentPeerID, cabOrders),
+				}
 			}
 		}
 
-		// Send inn input
+		// Encode the input to json to be sent to executable
 		jsonBytes, err := json.Marshal(input)
 		if err != nil {
 			fmt.Println("json.Marshal error: ", err)
 			return
 		}
-
+		// Start the hall_request_assigner executable
 		ret, err := exec.Command("hall_request_assigner/"+hraExecutable, "-i", string(jsonBytes)).CombinedOutput()
 		if err != nil {
 			fmt.Println("exec.Command error: ", err)
@@ -83,8 +69,7 @@ func assignNewOrder(newOrder ButtonEvent, elevatorStates ElevatorStates, myID in
 			return
 		}
 
-		// Hent ut output
-		// Finn heisen som fikk ordren, altså hvem som har true
+		// Decode output from executable
 		output := new(map[string][][2]bool)
 		err = json.Unmarshal(ret, &output)
 		if err != nil {
@@ -92,10 +77,13 @@ func assignNewOrder(newOrder ButtonEvent, elevatorStates ElevatorStates, myID in
 			return
 		}
 
-		fmt.Printf("output: \n")
-		for k, v := range *output {
-			fmt.Printf("%6v :  %+v\n", k, v)
+		// Find which elevator that was assigned the order
+		for string_ID, assignedHallRequests := range *output {
+			if assignedHallRequests[newOrder.Floor][int(newOrder.Button)] {
+				IDAssigned = IDToInt(string_ID)
+			}
 		}
+		return
 
 	case BT_HallUp:
 		hraExecutable := ""
@@ -108,25 +96,29 @@ func assignNewOrder(newOrder ButtonEvent, elevatorStates ElevatorStates, myID in
 			panic("OS not supported")
 		}
 
-		// Lag input til assigner
 		input := makeHRAIInput()
-		// Legg inn den ene ordren
+
 		input.HallRequests[newOrder.Floor][int(newOrder.Button)] = true
-		// Legg inn heisene som er i live
-		// Legg inn de aktive CabOrdrene til hver, eller la det blir tilsendt
+
 		for elevatorPeer := 0; elevatorPeer < N_ELEVATORS; elevatorPeer++ {
-			if (elevatorPeer != myID) && (elevatorStates.Peers[elevatorPeer].Alive) {
-				input.States
+			currentPeerID := elevatorPeer + 1
+			if elevatorStates.Peers[elevatorPeer].Alive {
+				input.States[IDToString(currentPeerID)] = HRAElevState{
+					Behavior:    Elevator_BehaviourToString(elevatorStates.Peers[elevatorPeer].Behaviour),
+					Floor:       elevatorStates.Peers[elevatorPeer].Floor,
+					Direction:   Elevator_MotorDirectionToString(elevatorStates.Peers[elevatorPeer].Direction),
+					CabRequests: extractCabOrder(currentPeerID, cabOrders),
+				}
 			}
 		}
 
-		// Send inn input
+		// Encode the input to json to be sent to executable
 		jsonBytes, err := json.Marshal(input)
 		if err != nil {
 			fmt.Println("json.Marshal error: ", err)
 			return
 		}
-
+		// Start the hall_request_assigner executable
 		ret, err := exec.Command("hall_request_assigner/"+hraExecutable, "-i", string(jsonBytes)).CombinedOutput()
 		if err != nil {
 			fmt.Println("exec.Command error: ", err)
@@ -134,8 +126,7 @@ func assignNewOrder(newOrder ButtonEvent, elevatorStates ElevatorStates, myID in
 			return
 		}
 
-		// Hent ut output
-		// Finn heisen som fikk ordren, altså hvem som har true
+		// Decode output from executable
 		output := new(map[string][][2]bool)
 		err = json.Unmarshal(ret, &output)
 		if err != nil {
@@ -143,10 +134,13 @@ func assignNewOrder(newOrder ButtonEvent, elevatorStates ElevatorStates, myID in
 			return
 		}
 
-		fmt.Printf("output: \n")
-		for k, v := range *output {
-			fmt.Printf("%6v :  %+v\n", k, v)
+		// Find which elevator that was assigned the order
+		for string_ID, assignedHallRequests := range *output {
+			if assignedHallRequests[newOrder.Floor][int(newOrder.Button)] {
+				IDAssigned = IDToInt(string_ID)
+			}
 		}
+		return
 
 	default:
 		fmt.Println("Not a valid button")
@@ -154,16 +148,83 @@ func assignNewOrder(newOrder ButtonEvent, elevatorStates ElevatorStates, myID in
 	return
 }
 
+func IDToString(ID int) string {
+	switch ID {
+	case 1:
+		return "one"
+	case 2:
+		return "two"
+	case 3:
+		return "three"
+	case 4:
+		return "four"
+	case 5:
+		return "five"
+	default:
+		return "none"
+	}
+}
+
+func IDToInt(ID string) int {
+	switch ID {
+	case "one":
+		return 1
+	case "two":
+		return 2
+	case "three":
+		return 3
+	case "four":
+		return 4
+	case "five":
+		return 5
+	default:
+		return 0
+	}
+}
+
 func makeHRAIInput() HRAInput {
 	return HRAInput{
-		HallRequests: [][2]bool{{false, false}, {true, false}, {false, false}, {false, true}},
-		States: map[string]HRAElevState{
-			"one": HRAElevState{
-				Behavior:    "idle",
-				Floor:       0,
-				Direction:   "stop",
-				CabRequests: []bool{false, false, false, false},
-			},
+		HallRequests: [][2]bool{{false, false}, {false, false}, {false, false}, {false, false}},
+		// {{BT_HallUp, BT_HallDown}, {BT_HallUp, BT_HallDown}, ...}
+		States: map[string]HRAElevState{},
+	}
+}
+
+func extractCabOrder(elevatorID int, cabOrders map[int][N_FLOORS]OrderState) []bool {
+	cabRequests := make([]bool, N_FLOORS)
+	for floor := 0; floor < N_FLOORS; floor++ {
+		cabRequests[floor] = (cabOrders[elevatorID][floor] == Confirmed)
+	}
+	return cabRequests
+}
+
+func testCostLogic() {
+	elevatorStates := ElevatorStates{
+		Peers: [N_ELEVATORS]ElevatorPeer{
+			{Alive: true, Floor: 1, Behaviour: ElevatorBehaviour(0), Direction: MotorDirection(0)},
+			{Alive: false, Floor: 2, Behaviour: ElevatorBehaviour(1), Direction: MotorDirection(0)},
+			{Alive: true, Floor: 0, Behaviour: ElevatorBehaviour(1), Direction: MotorDirection(0)},
 		},
 	}
+
+	cabOrders := map[int][N_FLOORS]OrderState{
+		1: {None, None, None, Unconfirmed},
+		2: {None, None, Completed, None},
+		3: {None, Confirmed, None, None},
+	}
+
+	myId := 1
+
+	newButtonEvent := ButtonEvent{
+		Floor:  1,
+		Button: ButtonType(1),
+	}
+
+	fmt.Println(AssignNewOrder(newButtonEvent, elevatorStates, cabOrders, myId))
+
+	newButtonEvent = ButtonEvent{
+		Floor:  3,
+		Button: ButtonType(2),
+	}
+	fmt.Println(AssignNewOrder(newButtonEvent, elevatorStates, cabOrders, myId))
 }
