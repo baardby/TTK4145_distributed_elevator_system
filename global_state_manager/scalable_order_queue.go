@@ -38,6 +38,22 @@ type OrderQueue struct {
 	Cab  map[int]AllCabOrders  // elevatorID -> that elevator's view of cab orders
 }
 
+type MyOrderList struct {
+	MyOrders [N_FLOORS][N_BUTTONS]bool
+}
+
+func (globalQueue *OrderQueue) GenerateMyOrderList(myID int) MyOrderList {
+	var myOrderList MyOrderList
+	for floor := 0; floor < N_FLOORS; floor++ {
+		for btn := 0; btn < N_BUTTONS; btn++ {
+			if GetHallOrder(globalQueue, myID, floor, btn).AssignedTo == myID || GetCabOrder(globalQueue, myID, floor).AssignedTo == myID {
+				myOrderList.MyOrders[floor][btn] = true
+			}
+		}
+	}
+	return myOrderList
+}
+
 func GenerateEmptyOrderQueue() OrderQueue {
 	return OrderQueue{
 		Hall: make(map[int]AllHallOrders),
