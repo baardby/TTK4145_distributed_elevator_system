@@ -1,4 +1,4 @@
-package global_state_manager // å endres hvis det puttes inn i en mappe
+ package global_state_manager // å endres hvis det puttes inn i en mappe
 
 import (
 	. "distributed_elevator/elevalgo"
@@ -19,12 +19,9 @@ const (
 	Completed                       // Order completed by at least one
 )
 
-// type HallOrderStateForArbitraryElevator [N_FLOORS][buttonsPerFloor]state
-
 type HallOrder struct {
 	AssignedTo	int		// Corresponding to elevator ID, -1 if unassigned
 	Active		bool	// Order exists (state is not None)
-	// HallOrderStateForAllElevators [N_ELEVATORS]HallOrderStateForArbitraryElevator
 	SeenBy		uint8	// Bit i represents whether elevator i has seen order
 	CompletedBy uint8	// Bit i represents whether elevator i has completed order
 	ClearedBy 	uint8	// Bit i represents whether elevator i is ready to clear order
@@ -312,7 +309,7 @@ func (q *OrderQueue) resetOrder(event Event?) {
 // If using flags instead of matrices, 
 // make a general function that does the shifting to improve readability
 
-// Ensure that btnEvent: {floor = 0, btnType = BT_HALL_DOWN} and {floor = 3, btnType = BT_HALL_UP}
+// Ensure that btnEvent: {floor = 0, btnType = BT_HALL_DOWN} and {floor = N_FLOORS, btnType = BT_HALL_UP}
 // is not possible
 
 // Implement for Cab orders as well
