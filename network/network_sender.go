@@ -3,8 +3,8 @@ package network
 import (
 	. "distributed_elevator/elevalgo"
 	. "distributed_elevator/elevio"
+	. "distributed_elevator/global_state_manager"
 	. "distributed_elevator/supervisor"
-	. "distributed_elevator/request_queue"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -13,13 +13,13 @@ import (
 )
 
 type NetworkSender struct {
-	DestID       int // DO WE NEED THIS?
-	DestIP       string
-	DestPort     string
-	DestAddr     *net.UDPAddr
-	MyConn       *net.UDPConn // Remember to add defer myConn.Close() in the loop the sender is run
-	Myself       Elevator
-	Requestqueue RequestQueue
+	DestID     int // DO WE NEED THIS?
+	DestIP     string
+	DestPort   string
+	DestAddr   *net.UDPAddr
+	MyConn     *net.UDPConn // Remember to add defer myConn.Close() in the loop the sender is run
+	Myself     Elevator
+	Orderqueue OrderQueue
 }
 
 func (sender *NetworkSender) networkSenderInit() {
@@ -62,7 +62,7 @@ func constructMessageToSlice(myself Elevator, msg Message) []byte {
 	return data
 }
 
-func Network_SenderFSM(elevatorStateCh <-chan Elevator, requestQueueCh <-chan RequestQueue) {
+func Network_SenderFSM(updateElevatorStateEvent <-chan Elevator, updateRequestQueueEvent <-chan OrderQueue) {
 	var sender NetworkSender
 	sender.networkSenderInit()
 	defer sender.MyConn.Close()
@@ -90,9 +90,9 @@ func Network_SenderFSM(elevatorStateCh <-chan Elevator, requestQueueCh <-chan Re
 
 	for {
 		select {
-		case <-elevatorStateCh:
+		case <-updateElevatorStateEvent:
 			// Update our elevator object which is to be sent
-		case <-requestQueueCh:
+		case <-updateRequestQueueEvent:
 			// Update our requestqueue which is to be sent
 		case <-ticker.C:
 			sender.broadcastOnNetwork(elevator, msgToSend)
