@@ -17,11 +17,11 @@ type ElevatorStates struct {
 	Peers [N_ELEVATORS]ElevatorPeer
 }
 
-func (elevatorStates *ElevatorStates) updateElevatorState(elevatorPeer ElevatorPeer) {
+func (elevatorStates *ElevatorStates) UpdateElevatorState(elevatorPeer ElevatorPeer) {
 	elevatorStates.Peers[elevatorPeer.ID] = elevatorPeer
 }
 
-func generateNewElevatorStates() ElevatorStates {
+func GenerateNewElevatorStates() ElevatorStates {
 	var elevatorStates ElevatorStates
 	for i := 0; i < N_ELEVATORS; i++ {
 		elevatorStates.Peers[i] = ElevatorPeer{
@@ -35,7 +35,7 @@ func generateNewElevatorStates() ElevatorStates {
 	return elevatorStates
 }
 
-func updateAliveElevatorsMap(elevatorStates ElevatorStates, aliveElevatorsMap map[int]bool) {
+func UpdateAliveElevatorsMap(elevatorStates ElevatorStates, aliveElevatorsMap map[int]bool) {
 	for i := 0; i < N_ELEVATORS; i++ {
 		aliveElevatorsMap[elevatorStates.Peers[i].ID] = elevatorStates.Peers[i].Alive
 	}
