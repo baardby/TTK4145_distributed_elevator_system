@@ -10,18 +10,33 @@ type ElevatorPeer struct {
 	Direction MotorDirection
 	Behaviour ElevatorBehaviour
 	Alive     bool
-	//Bør ha en elevtor ID ellerno sånt
+	ID        int
 }
 
 type ElevatorStates struct {
 	Peers [N_ELEVATORS]ElevatorPeer
 }
 
-func (elevatorStates *ElevatorStates) UpdateElevatorStates(elevatorNum int, floor int, direction MotorDirection, behaviour ElevatorBehaviour) {
-	elevatorStates.Peers[elevatorNum] = ElevatorPeer{
-		Floor:     floor,
-		Direction: direction,
-		Behaviour: behaviour,
-		Alive:     true,
+func (elevatorStates *ElevatorStates) updateElevatorState(elevatorPeer ElevatorPeer) {
+	elevatorStates.Peers[elevatorPeer.ID] = elevatorPeer
+}
+
+func generateNewElevatorStates() ElevatorStates {
+	var elevatorStates ElevatorStates
+	for i := 0; i < N_ELEVATORS; i++ {
+		elevatorStates.Peers[i] = ElevatorPeer{
+			Floor:     -1,
+			Direction: MD_Stop,
+			Behaviour: EB_Idle,
+			Alive:     false,
+			ID:        i,
+		}
+	}
+	return elevatorStates
+}
+
+func updateAliveElevatorsMap(elevatorStates ElevatorStates, aliveElevatorsMap map[int]bool) {
+	for i := 0; i < N_ELEVATORS; i++ {
+		aliveElevatorsMap[elevatorStates.Peers[i].ID] = elevatorStates.Peers[i].Alive
 	}
 }
