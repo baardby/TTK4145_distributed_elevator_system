@@ -55,7 +55,7 @@ func (listener *NetworkListener) readFromNetwork() (recvAddr *net.UDPAddr, recvM
 	return
 }
 
-func Network_ListenerFSM(receivedFromPeerEvent chan<- int,
+func Network_ListenerLoop(receivedFromPeerEvent chan<- int,
 	receivedMessageEvent chan<- Message) {
 	var listener NetworkListener
 	listener.networkListenerInit()

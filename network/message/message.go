@@ -1,18 +1,16 @@
 package message
 
 import (
-	. "distributed_elevator/elevalgo"
-	. "distributed_elevator/elevio"
 	. "distributed_elevator/global_state_manager/elevator_states"
+	. "distributed_elevator/global_state_manager/order_queue"
 	"encoding/json"
 	"fmt"
 )
 
 type Message struct {
-	ID                int
-	Peer              ElevatorPeer
-	RequestStates     [N_FLOORS][N_BUTTONS]byte
-	RequestAssignedTo [N_FLOORS][N_BUTTONS]byte
+	ID          int
+	Peer        ElevatorPeer
+	GlobalQueue OrderQueue
 }
 
 func ReconstructMessageFromSlice(msgBuffer []byte, msgSize int) (recvMsg Message) {
@@ -24,11 +22,8 @@ func ReconstructMessageFromSlice(msgBuffer []byte, msgSize int) (recvMsg Message
 	return
 }
 
-func ConstructMessageToSlice(myself Elevator, msg Message) []byte {
-	msg.Peer.Floor = myself.Floor
-	msg.Peer.Behaviour = myself.Behaviour
-	msg.Peer.Direction = myself.Direction
-	msg.Peer.Alive = true
+func ConstructMessageToSlice(myself ElevatorPeer, msg Message) []byte {
+	msg.Peer = myself
 
 	data, err := json.Marshal(msg)
 	if err != nil {

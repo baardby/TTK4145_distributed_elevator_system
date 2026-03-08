@@ -88,16 +88,16 @@ func main() {
 	go PollStopButton(stopEvent)
 
 	// Elevator algorithm goroutines
-	go Elevalgo_ElevatorControllerLoop(updateQueueEvent, 
+	go Elevalgo_ElevatorControllerLoop(updateQueueEvent,
 		newFloorEvent,
 		stopEvent,
-		obstrEvent, 
+		obstrEvent,
 		newButtonEvent,
 		updateElevatorEvent)
-	
+
 	// Network goroutines
-	//go Network_ListenerFSM(receivedFromPeerEvent, receivedMessageEvent)
-	//go Network_SenderFSM(newElevStateToSendEvent, newRequestQueueToSendEvent)
+	//go Network_ListenerLoop(receivedFromPeerEvent, receivedMessageEvent)
+	//go Network_SenderLoop(newElevStateToSendEvent, newRequestQueueToSendEvent)
 
 	select {}
 }

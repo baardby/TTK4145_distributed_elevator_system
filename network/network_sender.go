@@ -17,7 +17,7 @@ type NetworkSender struct {
 	DestPort   string
 	DestAddr   *net.UDPAddr
 	MyConn     *net.UDPConn // Remember to add defer myConn.Close() in the loop the sender is run
-	Myself     Elevator
+	MyElevator ElevatorPeer
 	Orderqueue OrderQueue
 }
 
@@ -38,7 +38,7 @@ func (sender *NetworkSender) networkSenderInit() {
 	}
 }
 
-func (sender *NetworkSender) broadcastOnNetwork(myself Elevator, msg Message) error {
+func (sender *NetworkSender) broadcastOnNetwork(myself ElevatorPeer, msg Message) error {
 	_, err := sender.MyConn.WriteToUDP(ConstructMessageToSlice(myself, msg), sender.DestAddr)
 	if err != nil { // ADD ERROR HANDLING
 		log.Fatalf("Sending message error: %v", err)
@@ -47,14 +47,22 @@ func (sender *NetworkSender) broadcastOnNetwork(myself Elevator, msg Message) er
 	return err
 }
 
-func Network_SenderFSM(updateElevatorStateEvent <-chan Elevator, updateRequestQueueEvent <-chan OrderQueue) {
+func (sender *NetworkSender) updateMyElevator(newElevator ElevatorPeer) {
+	sender.MyElevator = newElevator
+}
+
+func (sender *NetworkSender) updateMyOrderQueue(newOrderQueue OrderQueue) {
+	sender.Orderqueue = newOrderQueue
+}
+
+func Network_SenderLoop(updateElevatorStateEvent <-chan ElevatorPeer, updateOrderQueueEvent <-chan OrderQueue) {
 	var sender NetworkSender
 	sender.networkSenderInit()
 	defer sender.MyConn.Close()
 
 	// Setting up periodic sending
-	ticker := time.NewTicker(1000 * time.Millisecond) // CHANGE TO CORRECT TIME 50Hz?
-	defer ticker.Stop()
+	sendTicker := time.NewTicker(100 * time.Millisecond) // CHANGE TO CORRECT TIME 50Hz?
+	defer sendTicker.Stop()
 
 	var msgToSend Message = Message{
 		Peer: ElevatorPeer{
@@ -64,22 +72,20 @@ func Network_SenderFSM(updateElevatorStateEvent <-chan Elevator, updateRequestQu
 			Alive:     false,
 		},
 	}
-	var elevator Elevator = Elevator{
+	var elevator ElevatorPeer = ElevatorPeer{
 		Floor:     2,
 		Direction: MD_Up,
 		Behaviour: EB_Moving,
-		Config: Config{
-			DoorOpenDuration_s: 3.0,
-		},
+		Alive:     true,
 	} //COMMENT OUT AFTER TEST
 
 	for {
 		select {
-		case <-updateElevatorStateEvent:
-			// Update our elevator object which is to be sent
-		case <-updateRequestQueueEvent:
-			// Update our requestqueue which is to be sent
-		case <-ticker.C:
+		case newElevator := <-updateElevatorStateEvent:
+			sender.updateMyElevator(newElevator)
+		case newOrderQueue := <-updateOrderQueueEvent:
+			sender.updateMyOrderQueue(newOrderQueue)
+		case <-sendTicker.C:
 			sender.broadcastOnNetwork(elevator, msgToSend)
 		}
 	}

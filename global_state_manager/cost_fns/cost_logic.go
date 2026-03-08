@@ -23,7 +23,7 @@ type HRAInput struct {
 	States       map[string]HRAElevState `json:"states"`
 }
 
-func AssignNewOrder(newOrder ButtonEvent, elevatorStates ElevatorStates, cabOrders map[int][N_FLOORS]OrderState, myID int) (IDAssigned int) { // Needs to take in elevator states
+func AssignNewOrder(newOrder ButtonEvent, elevatorStates ElevatorStates, cabOrders map[int]AllCabOrders, myID int) (IDAssigned int) { // Needs to take in elevator states
 	switch newOrder.Button {
 	// If it is a CAB order, this elevator should do it.
 	case BT_Cab:
@@ -191,10 +191,10 @@ func makeHRAIInput() HRAInput {
 	}
 }
 
-func extractCabOrder(elevatorID int, cabOrders map[int][N_FLOORS]OrderState) []bool {
+func extractCabOrder(elevatorID int, cabOrders map[int]AllCabOrders) []bool {
 	cabRequests := make([]bool, N_FLOORS)
 	for floor := 0; floor < N_FLOORS; floor++ {
-		cabRequests[floor] = (cabOrders[elevatorID][floor] == Confirmed)
+		cabRequests[floor] = (cabOrders[elevatorID][floor].State == Confirmed)
 	}
 	return cabRequests
 }
@@ -208,10 +208,10 @@ func testCostLogic() {
 		},
 	}
 
-	cabOrders := map[int][N_FLOORS]OrderState{
-		1: {None, None, None, Unconfirmed},
-		2: {None, None, Completed, None},
-		3: {None, Confirmed, None, None},
+	cabOrders := map[int]AllCabOrders{
+		1: {{None, 1}, {None, 1}, {None, 1}, {Unconfirmed, 1}},
+		2: {{None, 1}, {None, 1}, {Completed, 1}, {None, 1}},
+		3: {{None, 1}, {Confirmed, 1}, {None, 1}, {None, 1}},
 	}
 
 	myId := 1
