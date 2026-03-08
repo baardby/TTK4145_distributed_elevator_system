@@ -1,4 +1,4 @@
-package supervisor //Må endres hvis det puttes inn i en mappe
+package global_state_manager //Må endres hvis det puttes inn i en mappe
 
 import (
 	. "distributed_elevator/elevalgo"
