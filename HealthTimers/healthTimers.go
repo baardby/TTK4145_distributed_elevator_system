@@ -12,7 +12,6 @@ type TimerEventType int
 const (
 	TimerElevatorTimeout TimerEventType = iota
 	TimerMovementStuck
-	TimerAcceptancetest
 )
 
 type TimerEvent struct {
@@ -33,6 +32,7 @@ type movingTimer timer
 func (elevatorTimers *elevatorTimers) checkElevatorTimers() int {
 	for elevator := 0; elevator < N_ELEVATORS; elevator++ {
 		if elevatorTimers[elevator].active && time.Since(elevatorTimers[elevator].startTime) > 5*time.Second {
+			elevatorTimers[elevator].active = false
 			return elevator
 		}
 	}
@@ -69,7 +69,7 @@ func updateMovingTimer(movingTimer *movingTimer, elevator elevalgo.Elevator) {
 }
 
 func HealthTimers(peerAliveCh <-chan int, updateElevatorEvt <-chan elevalgo.Elevator, TimerEventChan chan<- TimerEvent) {
-	ticker := time.NewTicker(100 * time.Millisecond)
+	ticker := time.NewTicker(200 * time.Millisecond)
 
 	movingTimer := movingTimer{startTime: time.Now(), active: false}
 
