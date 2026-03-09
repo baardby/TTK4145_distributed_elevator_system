@@ -4,47 +4,97 @@ import (
 	. "distributed_elevator/HealthTimers"
 	. "distributed_elevator/elevalgo"
 	. "distributed_elevator/elevio"
-	. "distributed_elevator/network"
-	. "distributed_elevator/supervisor"
+
+	//. "distributed_elevator/global_state_manager/cost_fns"
+	. "distributed_elevator/global_state_manager/elevator_states"
+	. "distributed_elevator/global_state_manager/order_queue"
+	. "distributed_elevator/network/message"
 )
 
-func handleTimeEvent(timeEvent TimerEvent, globalQueue *OrderQueue, globalElevatorStates *ElevatorStates) {
-	//handle time event
+const MyId = 1 // !!! Må endres til å være IDen til den heisen som kjører denne instansen av global state manager
+
+func handleTimeEvent(timeEvent TimerEvent, globalElevatorStates *ElevatorStates, aliveElevatorsMap map[int]bool) {
+	switch timeEvent.Type {
+	case TimerElevatorTimeout:
+		globalElevatorStates.Peers[timeEvent.ElevatorID].Alive = false
+		UpdateAliveElevatorsMap(*globalElevatorStates, aliveElevatorsMap)
+	case TimerMovementStuck:
+		globalElevatorStates.Peers[MyId].Alive = false
+		UpdateAliveElevatorsMap(*globalElevatorStates, aliveElevatorsMap)
+		//handle movement stuck, update global queue and elevator states, and send messages if needed
+		//case TimerAcceptancetest --- IGNORE ---
+	}
 }
 
-func handleSingleElevatorUpdate(singleElevatorUpdate SingleElevatorUpdate) {
-	//handle hardware event
+func handleRecievedMessage(recievedMessage Message, globalQueue *OrderQueue, globalElevatorStates *ElevatorStates) {
+	//handle network listener event
+	globalElevatorStates.UpdateElevatorState(recievedMessage.Peer)
+	//globalQueue.UpdateOrderQueue(recievedMessage.OrderQueue, recievedMessage.ID)
 }
 
-func handleNetwork_ListenerEvent(network_listenerEvent Message, globalQueue *OrderQueue, globalElevatorStates *ElevatorStates) {
-	//handle network listener even
-	//globalElevatorStates.UpdateElevatorStates()
-	//globalQueue.UpdateOrderQueue(message.OrderQueue, message.ID)
+func handleThisElevatorUpdate(thisElevatorUpdate Elevator, globalQueue *OrderQueue, globalElevatorStates *ElevatorStates, prevMyElevatorQueue *[N_FLOORS][N_BUTTONS]bool, aliveElevatorsMap map[int]bool) {
+	for floor := 0; floor < N_FLOORS; floor++ {
+		for btn := 0; btn < N_BUTTONS; btn++ {
+			if (*prevMyElevatorQueue)[floor][btn] && thisElevatorUpdate.Requests[floor][btn] == false {
+				globalQueue.CompleteMyOrder(ButtonEvent{Floor: floor, Button: ButtonType(btn)}, aliveElevatorsMap, MyId)
+			}
+		}
+	}
+	*prevMyElevatorQueue = thisElevatorUpdate.Requests
+
+	globalElevatorStates.UpdateElevatorState(ElevatorPeer{
+		Floor:     thisElevatorUpdate.Floor,
+		Direction: thisElevatorUpdate.Direction,
+		Behaviour: thisElevatorUpdate.Behaviour,
+		Alive:     true,
+		ID:        MyId,
+	})
+}
+
+func handleButtonEvent(buttonEvent ButtonEvent, globalQueue *OrderQueue, globalElevatorStates *ElevatorStates, aliveElevatorsMap map[int]bool) {
+	globalQueue.AppendNewOrder(buttonEvent, MyId, aliveElevatorsMap)
 }
 
 func Global_State_Manager(
+	timerEventChan <-chan TimerEvent,
 	recievedMessageChan <-chan Message,
-	timerEvent <-chan TimerEvent,
-	singleElevatorUpdate <-chan SingleElevatorUpdate,
-	singleElevatorCommand chan<- SingleElevatorCommand,
-	sendMessageChan chan<- NetworkMessage) {
+	thisElevatorUpdateChan <-chan Elevator,
+	buttonEventChan <-chan ButtonEvent,
+	myOrderListChan chan<- [N_FLOORS][N_BUTTONS]bool,
+	updateElevatorStateEvent chan<- ElevatorPeer,
+	updateOrderQueueEvent chan<- OrderQueue) {
 
-	//er der her man skal ha backupPhase() og listen for other queuepahse()?
+	// !!! er der her man skal ha backupPhase() og listen for other queuepahse()?
 
 	//init forskjellige ting
-	globalQueue := generateNewOrderQueue()
-	//globalElevatorStates := ElevatorStates{} //egen init funksjon?
+	globalQueue := GenerateEmptyOrderQueue()
+	globalElevatorStates := GenerateNewElevatorStates()
+	aliveElevatorsMap := map[int]bool{1: false, 2: false, 3: false} //map for å holde styr på hvilke heiser som er alive, oppdateres i handleTimeEvent og handleRecievedMessage
+	aliveElevatorsMap[MyId] = true
+	prevMyElevatorQueue := [N_FLOORS][N_BUTTONS]bool{} //!!! egen init?
 
 	for {
 		select {
-		case timerEvent := <-timerEvent:
-			handleTimeEvent(timerEvent, &globalQueue /*&globalElevatorStates*/)
-		case recievedMessage := <-recievedMessageChan:
-			handleNetwork_ListenerEvent(recievedMessage, &globalQueue /*&globalElevatorStates*/)
-		case singleElevatorUpdate := <-singleElevatorUpdate:
-			handleSingleElevatorUpdate(singleElevatorUpdate)
-			//update global queue and elevator states based on update from single elevator, and send messages if needed
+		case timerEvent := <-timerEventChan:
+			handleTimeEvent(timerEvent, &globalElevatorStates, aliveElevatorsMap)
+			updateElevatorStateEvent <- globalElevatorStates.Peers[MyId]
 
+			// !!! Må oppdatere aliveElevatorsMap her, fordi det er kun her de dør
+
+		case recievedMessage := <-recievedMessageChan:
+			handleRecievedMessage(recievedMessage, &globalQueue, &globalElevatorStates)
+			myOrderListChan <- globalQueue.RetrieveMyOrders(MyId)
+			updateOrderQueueEvent <- globalQueue
+
+		case thisElevatorUpdate := <-thisElevatorUpdateChan:
+			handleThisElevatorUpdate(thisElevatorUpdate, &globalQueue, &globalElevatorStates, &prevMyElevatorQueue, aliveElevatorsMap)
+			updateElevatorStateEvent <- globalElevatorStates.Peers[MyId]
+			updateOrderQueueEvent <- globalQueue
+
+		case buttonEvent := <-buttonEventChan:
+			handleButtonEvent(buttonEvent, &globalQueue, &globalElevatorStates, aliveElevatorsMap)
+			myOrderListChan <- globalQueue.RetrieveMyOrders(MyId)
+			updateOrderQueueEvent <- globalQueue
 		}
 	}
 }
