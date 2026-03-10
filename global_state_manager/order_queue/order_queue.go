@@ -117,7 +117,7 @@ func IsOrderInProgress(
 }
 
 // Function that appends new order, must call cost function to find assignTo parameter
-func (queue *OrderQueue) AppendNewOrder(btnEv ButtonEvent, myID int, aliveElevators map[int]bool) {
+func (queue *OrderQueue) AppendNewOrder(btnEv ButtonEvent, myID int, aliveElevators map[int]bool, assignTo int) {
 	floor := btnEv.Floor
 	btn := int(btnEv.Button)
 
@@ -131,8 +131,6 @@ func (queue *OrderQueue) AppendNewOrder(btnEv ButtonEvent, myID int, aliveElevat
 	}
 
 	if btnEv.Button != BT_Cab { // !!! Use switch case?
-		// !!! Placeholder function
-		assignTo := calculateCost(queue, aliveElevators, floor, btn)
 
 		if assignTo < 0 || assignTo >= N_ELEVATORS {
 			fmt.Println("Attempted to append invalid assignedTo: ", assignTo)
