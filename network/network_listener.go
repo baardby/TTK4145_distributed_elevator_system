@@ -25,7 +25,7 @@ func (listener *NetworkListener) networkListenerInit() {
 	listener.ListOfPeers = make(map[string]int)
 
 	listener.MyPort = "20003"
-	// Save our local IP to be able to filter out these messages afterwards
+	// Save our local IP to be able to filter out broadcasts to ourselves using IPs
 	listener.MyIP, err = LocalIP()
 
 	// We have to bind to 0.0.0.0 to be able to pickup broadcasts
@@ -67,7 +67,7 @@ func Network_ListenerLoop(myID int,
 		recvAddr, recvDecodedMsg, msgSize = listener.readFromNetwork()
 		// TODO: Choose between filtering out messages based on IP or ID
 
-		/*// Filter out our own messages again
+		/*// Filter out broadcasts to ourselves
 		if !(recvAddr.IP.String() == listener.MyIP) {
 			recvMsg, deconstructErr = ReconstructMessageFromSlice(recvDecodedMsg, msgSize)
 
