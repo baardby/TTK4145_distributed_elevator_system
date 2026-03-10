@@ -1,11 +1,10 @@
 package network
 
 import (
-	. "distributed_elevator/elevalgo"
-	. "distributed_elevator/elevio"
 	. "distributed_elevator/global_state_manager/elevator_states"
 	. "distributed_elevator/global_state_manager/order_queue"
 	. "distributed_elevator/network/message"
+	"fmt"
 	"log"
 	"net"
 	"time"
@@ -18,7 +17,8 @@ type NetworkSender struct {
 	DestAddr   *net.UDPAddr
 	MyConn     *net.UDPConn // Remember to add defer myConn.Close() in the loop the sender is run
 	MyElevator ElevatorPeer
-	Orderqueue OrderQueue
+	HallOrders AllHallOrders
+	CabOrders  AllCabOrders
 }
 
 func (sender *NetworkSender) networkSenderInit() {
@@ -38,10 +38,10 @@ func (sender *NetworkSender) networkSenderInit() {
 	}
 }
 
-func (sender *NetworkSender) broadcastOnNetwork(myself ElevatorPeer, msg Message) error {
-	_, err := sender.MyConn.WriteToUDP(ConstructMessageToSlice(myself, msg), sender.DestAddr)
+func (sender *NetworkSender) broadcastOnNetwork(msg Message) error {
+	_, err := sender.MyConn.WriteToUDP(ConstructMessageToSlice(msg), sender.DestAddr)
 	if err != nil { // ADD ERROR HANDLING
-		log.Fatalf("Sending message error: %v", err)
+		fmt.Println("Sending message error:", err)
 	}
 
 	return err
@@ -51,42 +51,47 @@ func (sender *NetworkSender) updateMyElevator(newElevator ElevatorPeer) {
 	sender.MyElevator = newElevator
 }
 
-func (sender *NetworkSender) updateMyOrderQueue(newOrderQueue OrderQueue) {
-	sender.Orderqueue = newOrderQueue
+func (sender *NetworkSender) updateHallOrderQueue(newHallOrderQueue AllHallOrders) {
+	sender.HallOrders = newHallOrderQueue
 }
 
-func Network_SenderLoop(updateElevatorStateEvent <-chan ElevatorPeer, updateOrderQueueEvent <-chan OrderQueue) {
+func (sender *NetworkSender) updateCabOrderQueue(newCabOrderQueue AllCabOrders) {
+	sender.CabOrders = newCabOrderQueue
+}
+
+func Network_SenderLoop(myID int,
+	updateElevatorStateEvent <-chan ElevatorPeer,
+	updateOrderQueueEvent <-chan OrderQueue) {
+
 	var sender NetworkSender
 	sender.networkSenderInit()
 	defer sender.MyConn.Close()
 
-	// Setting up periodic sending
-	sendTicker := time.NewTicker(100 * time.Millisecond) // CHANGE TO CORRECT TIME 50Hz?
-	defer sendTicker.Stop()
+	var msgToSend Message
+	msgToSend.ID = myID
+	msgToSend.NetworkCode = NETWORK_CODE
 
-	var msgToSend Message = Message{
-		Peer: ElevatorPeer{
-			Floor:     -1,
-			Direction: MD_Stop,
-			Behaviour: EB_Idle,
-			Alive:     false,
-		},
-	}
-	var elevator ElevatorPeer = ElevatorPeer{
-		Floor:     2,
-		Direction: MD_Up,
-		Behaviour: EB_Moving,
-		Alive:     true,
-	} //COMMENT OUT AFTER TEST
+	time.Sleep(200 * time.Millisecond) // Sleep to let other goroutines begin
+
+	// Setting up periodic sending
+	sendTicker := time.NewTicker(100 * time.Millisecond) // 10Hz
+	defer sendTicker.Stop()
 
 	for {
 		select {
 		case newElevator := <-updateElevatorStateEvent:
 			sender.updateMyElevator(newElevator)
+
+			msgToSend.UpdateMessage(sender.MyElevator, sender.HallOrders, sender.CabOrders)
+
 		case newOrderQueue := <-updateOrderQueueEvent:
-			sender.updateMyOrderQueue(newOrderQueue)
+			sender.updateHallOrderQueue(newOrderQueue.Hall[myID])
+			sender.updateCabOrderQueue(newOrderQueue.Cab[myID])
+
+			msgToSend.UpdateMessage(sender.MyElevator, sender.HallOrders, sender.CabOrders)
+
 		case <-sendTicker.C:
-			sender.broadcastOnNetwork(elevator, msgToSend)
+			sender.broadcastOnNetwork(msgToSend)
 		}
 	}
 }
