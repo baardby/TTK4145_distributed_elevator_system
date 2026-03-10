@@ -40,3 +40,13 @@ func UpdateAliveElevatorsMap(elevatorStates ElevatorStates, aliveElevatorsMap ma
 		aliveElevatorsMap[elevatorStates.Peers[i].ID] = elevatorStates.Peers[i].Alive
 	}
 }
+
+func ThisElevatorToElevatorPeer(elevator Elevator, MyId int) ElevatorPeer {
+	return ElevatorPeer{
+		Floor:     elevator.Floor,
+		Direction: elevator.Direction,
+		Behaviour: elevator.Behaviour,
+		Alive:     true,
+		ID:        MyId,
+	}
+}

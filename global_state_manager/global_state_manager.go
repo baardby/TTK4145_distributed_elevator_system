@@ -4,8 +4,7 @@ import (
 	. "distributed_elevator/HealthTimers"
 	. "distributed_elevator/elevalgo"
 	. "distributed_elevator/elevio"
-
-	//. "distributed_elevator/global_state_manager/cost_fns"
+	. "distributed_elevator/global_state_manager/cost_fns"
 	. "distributed_elevator/global_state_manager/elevator_states"
 	. "distributed_elevator/global_state_manager/order_queue"
 	. "distributed_elevator/network/message"
@@ -33,6 +32,8 @@ func handleRecievedMessage(recievedMessage Message, globalQueue *OrderQueue, glo
 }
 
 func handleThisElevatorUpdate(thisElevatorUpdate Elevator, globalQueue *OrderQueue, globalElevatorStates *ElevatorStates, prevMyElevatorQueue *[N_FLOORS][N_BUTTONS]bool, aliveElevatorsMap map[int]bool) {
+	// kan det lages en funksjon for det under? Kanskje ligge i order queue?
+
 	for floor := 0; floor < N_FLOORS; floor++ {
 		for btn := 0; btn < N_BUTTONS; btn++ {
 			if (*prevMyElevatorQueue)[floor][btn] && thisElevatorUpdate.Requests[floor][btn] == false {
@@ -42,17 +43,12 @@ func handleThisElevatorUpdate(thisElevatorUpdate Elevator, globalQueue *OrderQue
 	}
 	*prevMyElevatorQueue = thisElevatorUpdate.Requests
 
-	globalElevatorStates.UpdateElevatorState(ElevatorPeer{
-		Floor:     thisElevatorUpdate.Floor,
-		Direction: thisElevatorUpdate.Direction,
-		Behaviour: thisElevatorUpdate.Behaviour,
-		Alive:     true,
-		ID:        MyId,
-	})
+	globalElevatorStates.UpdateElevatorState(ThisElevatorToElevatorPeer(thisElevatorUpdate, MyId))
 }
 
-func handleButtonEvent(buttonEvent ButtonEvent, globalQueue *OrderQueue, globalElevatorStates *ElevatorStates, aliveElevatorsMap map[int]bool) {
-	globalQueue.AppendNewOrder(buttonEvent, MyId, aliveElevatorsMap)
+func handleButtonEvent(buttonEvent ButtonEvent, globalQueue *OrderQueue, globalElevatorStates ElevatorStates, aliveElevatorsMap map[int]bool) {
+	assignTo := AssignNewOrder(buttonEvent, globalElevatorStates, globalQueue.Cab, MyId)
+	globalQueue.AppendNewOrder(buttonEvent, MyId, aliveElevatorsMap, assignTo)
 }
 
 func Global_State_Manager(
@@ -92,7 +88,7 @@ func Global_State_Manager(
 			updateOrderQueueEvent <- globalQueue
 
 		case buttonEvent := <-buttonEventChan:
-			handleButtonEvent(buttonEvent, &globalQueue, &globalElevatorStates, aliveElevatorsMap)
+			handleButtonEvent(buttonEvent, &globalQueue, globalElevatorStates, aliveElevatorsMap)
 			myOrderListChan <- globalQueue.RetrieveMyOrders(MyId)
 			updateOrderQueueEvent <- globalQueue
 		}
