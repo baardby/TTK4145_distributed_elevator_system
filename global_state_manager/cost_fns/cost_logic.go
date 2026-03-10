@@ -1,4 +1,4 @@
-package cost_fns //Må endres hvis det puttes inn i en mappe
+package cost_fns
 
 import (
 	. "distributed_elevator/elevalgo"
@@ -23,7 +23,7 @@ type HRAInput struct {
 	States       map[string]HRAElevState `json:"states"`
 }
 
-func AssignNewOrder(newOrder ButtonEvent, elevatorStates ElevatorStates, cabOrders map[int]AllCabOrders, myID int) (IDAssigned int) { // Needs to take in elevator states
+func AssignNewOrder(newOrder ButtonEvent, elevatorStates ElevatorStates, cabOrders AllCabOrders, myID int) (IDAssigned int) { // Needs to take in elevator states
 	switch newOrder.Button {
 	// If it is a CAB order, this elevator should do it.
 	case BT_Cab:
@@ -47,7 +47,7 @@ func AssignNewOrder(newOrder ButtonEvent, elevatorStates ElevatorStates, cabOrde
 		for elevatorPeer := 0; elevatorPeer < N_ELEVATORS; elevatorPeer++ {
 			currentPeerID := elevatorPeer + 1
 			if elevatorStates.Peers[elevatorPeer].Alive {
-				input.States[IDToString(currentPeerID)] = HRAElevState{
+				input.States[iDToString(currentPeerID)] = HRAElevState{
 					Behavior:    Elevator_BehaviourToString(elevatorStates.Peers[elevatorPeer].Behaviour),
 					Floor:       elevatorStates.Peers[elevatorPeer].Floor,
 					Direction:   Elevator_MotorDirectionToString(elevatorStates.Peers[elevatorPeer].Direction),
@@ -63,7 +63,7 @@ func AssignNewOrder(newOrder ButtonEvent, elevatorStates ElevatorStates, cabOrde
 			return
 		}
 		// Start the hall_request_assigner executable
-		ret, err := exec.Command("hall_request_assigner/"+hraExecutable, "-i", string(jsonBytes)).CombinedOutput()
+		ret, err := exec.Command("global_state_manager/cost_fns/hall_request_assigner/"+hraExecutable, "-i", string(jsonBytes)).CombinedOutput()
 		if err != nil {
 			fmt.Println("exec.Command error: ", err)
 			fmt.Println(string(ret))
@@ -81,7 +81,7 @@ func AssignNewOrder(newOrder ButtonEvent, elevatorStates ElevatorStates, cabOrde
 		// Find which elevator that was assigned the order
 		for string_ID, assignedHallRequests := range *output {
 			if assignedHallRequests[newOrder.Floor][int(newOrder.Button)] {
-				IDAssigned = IDToInt(string_ID)
+				IDAssigned = iDToInt(string_ID)
 			}
 		}
 		return
@@ -104,7 +104,7 @@ func AssignNewOrder(newOrder ButtonEvent, elevatorStates ElevatorStates, cabOrde
 		for elevatorPeer := 0; elevatorPeer < N_ELEVATORS; elevatorPeer++ {
 			currentPeerID := elevatorPeer + 1
 			if elevatorStates.Peers[elevatorPeer].Alive {
-				input.States[IDToString(currentPeerID)] = HRAElevState{
+				input.States[iDToString(currentPeerID)] = HRAElevState{
 					Behavior:    Elevator_BehaviourToString(elevatorStates.Peers[elevatorPeer].Behaviour),
 					Floor:       elevatorStates.Peers[elevatorPeer].Floor,
 					Direction:   Elevator_MotorDirectionToString(elevatorStates.Peers[elevatorPeer].Direction),
@@ -120,7 +120,7 @@ func AssignNewOrder(newOrder ButtonEvent, elevatorStates ElevatorStates, cabOrde
 			return
 		}
 		// Start the hall_request_assigner executable
-		ret, err := exec.Command("hall_request_assigner/"+hraExecutable, "-i", string(jsonBytes)).CombinedOutput()
+		ret, err := exec.Command("global_state_manager/cost_fns/hall_request_assigner/"+hraExecutable, "-i", string(jsonBytes)).CombinedOutput()
 		if err != nil {
 			fmt.Println("exec.Command error: ", err)
 			fmt.Println(string(ret))
@@ -138,7 +138,7 @@ func AssignNewOrder(newOrder ButtonEvent, elevatorStates ElevatorStates, cabOrde
 		// Find which elevator that was assigned the order
 		for string_ID, assignedHallRequests := range *output {
 			if assignedHallRequests[newOrder.Floor][int(newOrder.Button)] {
-				IDAssigned = IDToInt(string_ID)
+				IDAssigned = iDToInt(string_ID)
 			}
 		}
 		return
@@ -149,7 +149,7 @@ func AssignNewOrder(newOrder ButtonEvent, elevatorStates ElevatorStates, cabOrde
 	return
 }
 
-func IDToString(ID int) string {
+func iDToString(ID int) string {
 	switch ID {
 	case 1:
 		return "one"
@@ -166,7 +166,7 @@ func IDToString(ID int) string {
 	}
 }
 
-func IDToInt(ID string) int {
+func iDToInt(ID string) int {
 	switch ID {
 	case "one":
 		return 1
@@ -191,30 +191,31 @@ func makeHRAIInput() HRAInput {
 	}
 }
 
-func extractCabOrder(elevatorID int, cabOrders map[int]AllCabOrders) []bool {
+func extractCabOrder(elevatorID int, cabOrders AllCabOrders) []bool {
 	cabRequests := make([]bool, N_FLOORS)
 	for floor := 0; floor < N_FLOORS; floor++ {
-		cabRequests[floor] = (cabOrders[elevatorID][floor].State == Confirmed)
+		cabRequests[floor] = (cabOrders[floor][elevatorID-1] == Confirmed)
 	}
 	return cabRequests
 }
 
-func testCostLogic() {
+func TestCostLogic() {
 	elevatorStates := ElevatorStates{
 		Peers: [N_ELEVATORS]ElevatorPeer{
-			{Alive: true, Floor: 1, Behaviour: ElevatorBehaviour(0), Direction: MotorDirection(0)},
-			{Alive: false, Floor: 2, Behaviour: ElevatorBehaviour(1), Direction: MotorDirection(0)},
-			{Alive: true, Floor: 0, Behaviour: ElevatorBehaviour(1), Direction: MotorDirection(0)},
+			{Alive: true, Floor: 0, Behaviour: ElevatorBehaviour(0), Direction: MotorDirection(0)},
+			{Alive: true, Floor: 0, Behaviour: ElevatorBehaviour(0), Direction: MotorDirection(0)},
+			{Alive: true, Floor: 0, Behaviour: ElevatorBehaviour(0), Direction: MotorDirection(0)},
 		},
 	}
 
-	cabOrders := map[int]AllCabOrders{
-		1: {{State: None, AssignedTo: 1}, {State: None, AssignedTo: 1}, {State: None, AssignedTo: 1}, {State: Unconfirmed, AssignedTo: 1}},
-		2: {{State: None, AssignedTo: 1}, {State: None, AssignedTo: 1}, {State: Completed, AssignedTo: 1}, {State: None, AssignedTo: 1}},
-		3: {{State: None, AssignedTo: 1}, {State: Confirmed, AssignedTo: 1}, {State: None, AssignedTo: 1}, {State: None, AssignedTo: 1}},
+	cabOrders := AllCabOrders{
+		{None, None, None},
+		{None, Confirmed, None},
+		{None, None, None},
+		{Confirmed, None, Confirmed},
 	}
 
-	myId := 1
+	myId := 2
 
 	newButtonEvent := ButtonEvent{
 		Floor:  1,
