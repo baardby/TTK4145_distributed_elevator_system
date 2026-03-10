@@ -7,7 +7,9 @@ import (
 
 // !!! Should we drop GetOrder functions
 
-// !!! Variable and function names are hard
+// !!! Variable and function names can be improved
+
+// !!! Check if aliveElevators map must be changed to connectedElevators in some functions
 
 const (
 	noElevatorAssigned  = 0
@@ -18,6 +20,7 @@ const (
 type OrderState int
 
 // !!! Better comments
+// !!! Switch back to None = 0?
 const (
 	Completed   OrderState = iota // Order completed by at least one
 	None                          // Order completed by all
@@ -31,7 +34,7 @@ type Order struct {
 }
 
 type AllHallOrders [N_FLOORS][hallButtonsPerFloor]Order
-type AllCabOrders [N_FLOORS]Order
+type AllCabOrders [N_FLOORS][N_ELEVATORS]OrderState
 
 type OrderQueue struct {
 	Hall map[int]AllHallOrders // elevatorID -> that elevator's view of all hall orders
@@ -154,25 +157,35 @@ func (queue *OrderQueue) AppendNewOrder(btnEv ButtonEvent, myID int, aliveElevat
 	}
 }
 
-func (myQueue *OrderQueue) CompleteMyOrder(btnEvent ButtonEvent, aliveElevators map[int]bool, myID int) {
+func (myQueue *OrderQueue) CompleteMyOrder(btnEvent ButtonEvent, aliveElevators map[int]bool, myID int) bool {
 	floor := btnEvent.Floor
 	btn := int(btnEvent.Button)
 
 	if floor < 0 || floor >= N_FLOORS {
 		fmt.Println("Attempted to append order at invalid floor: ", floor)
-		return
+		return false
 	}
 	if !IsOrderInProgress(myQueue, aliveElevators, btnEvent) {
 		fmt.Println("This order is not in progress.")
-		return
+		return false
+	}
+
+	for ID, alive := range aliveElevators {
+		if !alive || ID == myID {
+			continue
+		}
+		if GetHallOrder(myQueue, ID, floor, btn).State != Confirmed {
+			fmt.Print("Some elevator(s) no in Confirmed.")
+			return false
+		}
 	}
 
 	if btnEvent.Button != BT_Cab { // !!! Use switch case?
 		hallOrders := myQueue.Hall[myID]
 
 		if hallOrders[floor][btn].AssignedTo != myID {
-			fmt.Println("Attempted to mark order completed by wrong elevator. Order assigned to: ", hallOrders[floor][btn].AssignedTo, " myID: ", myID)
-			return
+			fmt.Println("Attempted to mark order completed by wrong elevator. Order assigned to: ", hallOrders[floor][btn].AssignedTo, ", myID: ", myID)
+			return false
 		}
 
 		hallOrders[floor][btn] = Order{
@@ -184,8 +197,8 @@ func (myQueue *OrderQueue) CompleteMyOrder(btnEvent ButtonEvent, aliveElevators 
 		cabOrders := myQueue.Cab[myID]
 
 		if cabOrders[floor].AssignedTo != myID {
-			fmt.Println("Attempted to mark order completed by wrong elevator. Order assigned to: ", cabOrders[floor].AssignedTo, " myID: ", myID)
-			return
+			fmt.Println("Attempted to mark order completed by wrong elevator. Order assigned to: ", cabOrders[floor].AssignedTo, ", myID: ", myID)
+			return false
 		}
 
 		cabOrders[floor] = Order{
@@ -194,8 +207,10 @@ func (myQueue *OrderQueue) CompleteMyOrder(btnEvent ButtonEvent, aliveElevators 
 		}
 		myQueue.Cab[myID] = cabOrders
 	}
+	return true
 }
 
+/* START
 func CanHallOrderTransitionState(
 	queue *OrderQueue,
 	myID int,
@@ -334,7 +349,7 @@ func (myQueue *OrderQueue) TransitionMyQueue(myID int, aliveElevators map[int]bo
 	}
 	myQueue.Hall[myID] = hallOrders
 	myQueue.Cab[myID] = cabOrders
-}
+} END */
 
 func (myQueue *OrderQueue) TransitionHallOrders(
 	myID int,
@@ -346,33 +361,43 @@ func (myQueue *OrderQueue) TransitionHallOrders(
 
 	for floor := 0; floor < N_FLOORS; floor++ {
 		for btn := 0; btn < hallButtonsPerFloor; btn++ {
-			currentState := GetHallOrder(myQueue, myID, floor, btn).State
+			myHallOrder := GetHallOrder(myQueue, myID, floor, btn)
+			currentState := myHallOrder.State
+			expectedAssignedTo := myHallOrder.AssignedTo
+			otherHallOrder := myHallOrder // Initialized as my own
 
 			switch currentState {
 			case None:
+				amIAlone := true
 				for ID, alive := range aliveElevators {
 					if !alive || ID == myID {
 						continue
 					}
-					otherHallOrder := GetHallOrder(myQueue, ID, floor, btn)
-					if otherHallOrder.State == Unconfirmed {
-						hallOrders[floor][btn].State = Unconfirmed
+					amIAlone = false
+					otherHallOrder = GetHallOrder(myQueue, ID, floor, btn)
+					if otherHallOrder.State == Completed {
+						return false
+					}
+					if hallOrders[floor][btn].State < otherHallOrder.State {
+						hallOrders[floor][btn].State = otherHallOrder.State
 						hallOrders[floor][btn].AssignedTo = otherHallOrder.AssignedTo
-						myQueue.Hall[myID] = hallOrders
-						return true
 					}
 				}
-				return false
+				if amIAlone {
+					hallOrders[floor][btn].State = Unconfirmed
+					hallOrders[floor][btn].AssignedTo = otherHallOrder.AssignedTo
+				}
+				myQueue.Hall[myID] = hallOrders
+				return true
 
 			case Unconfirmed:
-				expectedAssignedTo := GetHallOrder(myQueue, myID, floor, btn).AssignedTo
-
 				for ID, alive := range aliveElevators {
 					if !alive || ID == myID {
 						continue
 					}
-					otherHallOrder := GetHallOrder(myQueue, ID, floor, btn)
+					otherHallOrder = GetHallOrder(myQueue, ID, floor, btn)
 					if otherHallOrder.State == None || otherHallOrder.State == Completed {
+						myQueue.Hall[myID] = hallOrders // Ensuring we keep the lowest assignedTo ID even in transition failure
 						return false
 					}
 
@@ -392,27 +417,136 @@ func (myQueue *OrderQueue) TransitionHallOrders(
 					if !alive || ID == myID {
 						continue
 					}
-					if GetHallOrder(queue, ID, floor, btn).State == Completed { // Must double check this
-						return true
+					otherHallOrder = GetHallOrder(myQueue, ID, floor, btn)
+					if otherHallOrder.State != Completed { // Must double check this
+						return false
 					}
 				}
-				return false
+				hallOrders[floor][btn].State = Completed
+				hallOrders[floor][btn].AssignedTo = noElevatorAssigned
+				myQueue.Hall[myID] = hallOrders
+				return true
 
 			case Completed:
+				amIAlone := true
 				for ID, alive := range aliveElevators {
 					if !alive || ID == myID {
 						continue
 					}
-					if GetHallOrder(queue, ID, floor, btn).State == Confirmed {
+					amIAlone = false
+					otherHallOrder = GetHallOrder(myQueue, ID, floor, btn)
+					if otherHallOrder.State == Confirmed {
 						return false
 					}
+					if hallOrders[floor][btn].State < otherHallOrder.State {
+						hallOrders[floor][btn].State = otherHallOrder.State
+						hallOrders[floor][btn].AssignedTo = otherHallOrder.AssignedTo
+					}
 				}
+				if amIAlone {
+					hallOrders[floor][btn].State = None
+					hallOrders[floor][btn].AssignedTo = noElevatorAssigned
+				}
+				myQueue.Hall[myID] = hallOrders
 				return true
 			default:
 				fmt.Println("Undefined order state: ", currentState)
 				return false
 			}
-
 		}
 	}
+	return false
+}
+
+func (myQueue *OrderQueue) TransitionCabOrders(
+	myID int,
+	aliveElevators map[int]bool,
+	floor int,
+) bool {
+	cabOrders := myQueue.Cab[myID]
+
+	for floor := 0; floor < N_FLOORS; floor++ {
+		myCabOrder := GetCabOrder(myQueue, myID, floor)
+		currentState := myCabOrder.State
+		expectedAssignedTo := myCabOrder.AssignedTo
+		otherCabOrder := myCabOrder // Initialized as my own
+
+		switch currentState {
+		case None:
+			amIAlone := true
+			for ID, alive := range aliveElevators {
+				if !alive || ID == myID {
+					continue
+				}
+				amIAlone = false
+				otherCabOrder = GetCabOrder(myQueue, ID, floor)
+				if otherCabOrder.State == Completed {
+					return false
+				}
+				if cabOrders[floor].State < otherCabOrder.State {
+					cabOrders[floor].State = otherCabOrder.State
+				}
+			}
+			if amIAlone {
+				cabOrders[floor].State = Unconfirmed
+			}
+			myQueue.Cab[myID] = cabOrders
+			return true
+
+		case Unconfirmed:
+			for ID, alive := range aliveElevators {
+				if !alive || ID == myID {
+					continue
+				}
+				otherCabOrder = GetCabOrder(myQueue, ID, floor)
+				if otherCabOrder.State == None || otherCabOrder.State == Completed {
+					return false
+				}
+			}
+
+			cabOrders[floor].State = Confirmed
+			myQueue.Cab[myID] = cabOrders
+			return true
+
+		// Continue from here
+		case Confirmed:
+			for ID, alive := range aliveElevators {
+				if !alive || ID == myID {
+					continue
+				}
+				otherCabOrder = GetCabOrder(myQueue, ID, floor)
+				if otherCabOrder.State != Completed { // Must double check this
+					return false
+				}
+			}
+			cabOrders[floor].State = Completed
+			myQueue.Cab[myID] = cabOrders
+			return true
+
+		case Completed:
+			amIAlone := true
+			for ID, alive := range aliveElevators {
+				if !alive || ID == myID {
+					continue
+				}
+				amIAlone = false
+				otherCabOrder = GetCabOrder(myQueue, ID, floor)
+				if otherCabOrder.State == Confirmed {
+					return false
+				}
+				if cabOrders[floor].State < otherCabOrder.State {
+					cabOrders[floor].State = otherCabOrder.State
+				}
+			}
+			if amIAlone {
+				cabOrders[floor].State = None
+			}
+			myQueue.Cab[myID] = cabOrders
+			return true
+		default:
+			fmt.Println("Undefined order state: ", currentState)
+			return false
+		}
+	}
+	return false
 }
