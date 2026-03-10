@@ -1,13 +1,13 @@
 package global_state_manager
 
 import (
-	. "distributed_elevator/HealthTimers"
 	. "distributed_elevator/elevalgo"
 	. "distributed_elevator/elevio"
 	. "distributed_elevator/global_state_manager/cost_fns"
 	. "distributed_elevator/global_state_manager/elevator_states"
 	. "distributed_elevator/global_state_manager/order_queue"
 	. "distributed_elevator/network/message"
+	. "distributed_elevator/supervisor"
 )
 
 const MyId = 1 // !!! Må endres til å være IDen til den heisen som kjører denne instansen av global state manager

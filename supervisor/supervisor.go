@@ -1,59 +1,101 @@
-package supervisor //Må endres hvis det puttes inn i en mappe
+package supervisor
 
 import (
-	"distributed_elevator/HealthTimers"
+	"distributed_elevator/elevalgo"
+	. "distributed_elevator/elevio"
+	"time"
 )
 
-type Ports struct {
-	TimerCommand chan<- HealthTimers.TimerCommand
-	TimerEvent   <-chan HealthTimers.TimerEvent
+type TimerEventType int
 
-	//Legg til flere kanaler for de forskjellige modulene
+const (
+	TimerElevatorTimeout TimerEventType = iota
+	TimerMovementStuck
+)
+
+type TimerEvent struct {
+	Type       TimerEventType
+	ElevatorID int
 }
 
-func handleTimeEvent(timeEvent int) {
-	//handle time event
+type timer struct {
+	startTime time.Time
+	active    bool
 }
 
-func handleHardwareEvent(hardwareEvent int) {
-	//handle hardware event
+type elevatorTimers [N_ELEVATORS]timer
+
+type movingTimer timer
+
+// func checkElevatorTimers returnerer ID til timeren som har gått ut, -1 ellers
+func (elevatorTimers *elevatorTimers) checkElevatorTimers() int {
+	for elevator := 0; elevator < N_ELEVATORS; elevator++ {
+		if elevatorTimers[elevator].active && time.Since(elevatorTimers[elevator].startTime) > 5*time.Second {
+			elevatorTimers[elevator].active = false
+			return elevator
+		}
+	}
+	return -1
 }
 
-func handleNetwork_ListenerEvent(network_listenerEvent int) {
-	//handle network listener event
+func (movingTimer *movingTimer) amIStuck() bool {
+	if movingTimer.active && time.Since(movingTimer.startTime) > 5*time.Second {
+		return true
+	}
+	return false
 }
 
-func Supervisor() {
-	backupPhase()
-	//listen for others queue
-	//if no response, init queue
-	//make all the channels and init funktion for the different modules
-	//set own state
-	timeChan := make(chan int)             //channel for timers
-	hardwareChan := make(chan int)         //channel for hardware events
-	network_listenerChan := make(chan int) //channel for network listener events
+func updateElevatorTimer(elevatorTimers *elevatorTimers, elevatorID int) {
+	elevatorTimers[elevatorID].startTime = time.Now()
+	elevatorTimers[elevatorID].active = true
+}
 
+func updateMovingTimer(movingTimer *movingTimer, elevator elevalgo.Elevator) {
+	if movingTimer.active {
+		if elevator.Floor != -1 {
+			movingTimer.startTime = time.Now()
+		}
+		if elevator.Behaviour != elevalgo.EB_Moving {
+			movingTimer.active = false
+		}
+	} else {
+		if elevator.Behaviour == elevalgo.EB_Moving {
+			movingTimer.startTime = time.Now()
+			movingTimer.active = true
+		}
+	}
+
+}
+
+func HealthTimers(peerAliveCh <-chan int, updateElevatorEvt <-chan elevalgo.Elevator, TimerEventChan chan<- TimerEvent) {
+	ticker := time.NewTicker(200 * time.Millisecond)
+
+	movingTimer := movingTimer{startTime: time.Now(), active: false}
+
+	elevatorTimers := elevatorTimers{
+		{startTime: time.Now(), active: false},
+		{startTime: time.Now(), active: false},
+		{startTime: time.Now(), active: false},
+	}
+	// Lag løkke for å lage timers og holde styr på forskjellig stuff.
 	for {
-		//send checkpoint to backup
 		select {
-		case timeEvent := <-timeChan:
-			handleTimeEvent(timeEvent)
-		case hardwareEvent := <-hardwareChan:
-			handleHardwareEvent(hardwareEvent)
-		case network_listenerEvent := <-network_listenerChan:
-			handleNetwork_ListenerEvent(network_listenerEvent)
-			//default: //kjør acceptance test, og send melding til backup
+		case peerAlive := <-peerAliveCh:
+			updateElevatorTimer(&elevatorTimers, peerAlive)
+		case elevator := <-updateElevatorEvt:
+			updateMovingTimer(&movingTimer, elevator)
+		case <-ticker.C:
+			if id := elevatorTimers.checkElevatorTimers(); id != -1 {
+				TimerEventChan <- TimerEvent{
+					Type:       TimerElevatorTimeout,
+					ElevatorID: id,
+				}
+			}
+			if movingTimer.amIStuck() {
+				TimerEventChan <- TimerEvent{Type: TimerMovementStuck}
+			}
+
+			//LAG EN ACCEPTANCE TEST
 		}
 	}
 }
-
-//func amIWorking
-//		input: none
-//		forskjellgie tester på meg selv
-//			Kjører jeg når jeg skal kjøre?
-//		return: bool
-
-//func listenForErrors
-//		input: error
-//		kjør restart, eller løs problemet.
-//		return: none
