@@ -246,17 +246,11 @@ func (myQueue *OrderQueue) TransitionSingleHallOrder(
 
 	switch currentState {
 	case None:
-		amIAlone := true
 		for _, elevatorPeer := range elevatorStates.Peers {
 			elevatorID := elevatorPeer.ID
 			if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection {
 				continue
 			}
-			// for ID, alive := range aliveElevators {
-			// 	if !alive || ID == myID {
-			// 		continue
-			// 	}
-			amIAlone = false
 			otherHallOrder = GetHallOrder(myQueue, elevatorID, floor, btn)
 			if otherHallOrder.State == Completed {
 				return
@@ -265,10 +259,6 @@ func (myQueue *OrderQueue) TransitionSingleHallOrder(
 				hallOrders[floor][btn].State = otherHallOrder.State
 				hallOrders[floor][btn].AssignedTo = otherHallOrder.AssignedTo
 			}
-		}
-		if amIAlone {
-			hallOrders[floor][btn].State = None
-			hallOrders[floor][btn].AssignedTo = noElevatorAssigned
 		}
 		myQueue.Hall[myID] = *hallOrders
 		return
@@ -279,10 +269,6 @@ func (myQueue *OrderQueue) TransitionSingleHallOrder(
 			if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection {
 				continue
 			}
-			// for ID, alive := range aliveElevators {
-			// 	if !alive || ID == myID {
-			// 		continue
-			// 	}
 			otherHallOrder = GetHallOrder(myQueue, elevatorID, floor, btn)
 			if otherHallOrder.State == None || otherHallOrder.State == Completed {
 				myQueue.Hall[myID] = *hallOrders // Ensuring we keep the lowest assignedTo ID even in transition failure
@@ -299,24 +285,26 @@ func (myQueue *OrderQueue) TransitionSingleHallOrder(
 		myQueue.Hall[myID] = *hallOrders
 		return
 
-	// Continue from here
 	case Confirmed:
 		for _, elevatorPeer := range elevatorStates.Peers {
 			elevatorID := elevatorPeer.ID
 			if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection {
 				continue
 			}
-			// for ID, alive := range aliveElevators {
-			// 	if !alive || ID == myID {
-			// 		continue
-			// 	}
 			otherHallOrder = GetHallOrder(myQueue, elevatorID, floor, btn)
-			if otherHallOrder.State == None || otherHallOrder.State == Unconfirmed { // Must double check this
+			switch otherHallOrder.State {
+			case None, Unconfirmed:	// Double check
 				return
-			} else if otherHallOrder.State == Completed {
+			case Completed:
 				hallOrders[floor][btn].State = Completed
 				hallOrders[floor][btn].AssignedTo = noElevatorAssigned
 			}
+			// if otherHallOrder.State == None || otherHallOrder.State == Unconfirmed { // Must double check this
+			// 	return
+			// } else if otherHallOrder.State == Completed {
+			// 	hallOrders[floor][btn].State = Completed
+			// 	hallOrders[floor][btn].AssignedTo = noElevatorAssigned
+			// }
 		}
 		myQueue.Hall[myID] = *hallOrders
 		return
@@ -329,10 +317,6 @@ func (myQueue *OrderQueue) TransitionSingleHallOrder(
 			if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection {
 				continue
 			}
-			// for ID, alive := range aliveElevators {
-			// 	if !alive || ID == myID {
-			// 		continue
-			// 	}
 			amIAlone = false
 			otherHallOrder = GetHallOrder(myQueue, elevatorID, floor, btn)
 			if otherHallOrder.State == Confirmed {
@@ -383,17 +367,11 @@ func (myQueue *OrderQueue) TransitionSingleCabOrder(
 
 	switch myCabOrder {
 	case None:
-		amIAlone := true
 		for _, elevatorPeer := range elevatorStates.Peers {
 			elevatorID := elevatorPeer.ID
 			if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection {
 				continue
 			}
-			// for ID, alive := range aliveElevators {
-			// 	if !alive || ID == myID {
-			// 		continue
-			// 	}
-			amIAlone = false
 			otherCabOrder = GetCabOrder(myQueue, elevatorID, floor, assignedElevatorID)
 			if otherCabOrder == Completed {
 				return
@@ -401,9 +379,6 @@ func (myQueue *OrderQueue) TransitionSingleCabOrder(
 			if cabOrders[floor][assignedElevatorID] < otherCabOrder {
 				cabOrders[floor][assignedElevatorID] = otherCabOrder
 			}
-		}
-		if amIAlone {
-			cabOrders[floor][assignedElevatorID] = Unconfirmed
 		}
 		myQueue.Cab[myID] = *cabOrders
 		return
@@ -414,37 +389,33 @@ func (myQueue *OrderQueue) TransitionSingleCabOrder(
 			if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection {
 				continue
 			}
-			// for ID, alive := range aliveElevators {
-			// 	if !alive || ID == myID {
-			// 		continue
-			// 	}
 			otherCabOrder = GetCabOrder(myQueue, elevatorID, floor, assignedElevatorID)
 			if otherCabOrder == None || otherCabOrder == Completed {
 				return
 			}
 		}
-
 		cabOrders[floor][assignedElevatorID] = Confirmed
 		myQueue.Cab[myID] = *cabOrders
 		return
 
-	// Continue from here
 	case Confirmed:
 		for _, elevatorPeer := range elevatorStates.Peers {
 			elevatorID := elevatorPeer.ID
 			if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection {
 				continue
 			}
-			// for ID, alive := range aliveElevators {
-			// 	if !alive || ID == myID {
-			// 		continue
-			// 	}
 			otherCabOrder = GetCabOrder(myQueue, elevatorID, floor, assignedElevatorID)
-			if otherCabOrder == None || otherCabOrder == Unconfirmed { // Must double check this
+			switch otherCabOrder {
+			case None, Unconfirmed: // Must check
 				return
-			} else if otherCabOrder == Completed {
+			case Completed:
 				cabOrders[floor][assignedElevatorID] = Completed
 			}
+			// if otherCabOrder == None || otherCabOrder == Unconfirmed { // Must double check this
+			// 	return
+			// } else if otherCabOrder == Completed {
+			// 	cabOrders[floor][assignedElevatorID] = Completed
+			// }
 		}
 		myQueue.Cab[myID] = *cabOrders
 		return
