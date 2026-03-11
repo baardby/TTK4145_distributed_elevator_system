@@ -102,8 +102,6 @@ func Fsm_OnDoorTimeout(e *Elevator) {
 				Elevator_DoorLight(false)
 				Elevator_MotorDirection(e.Direction)
 			}
-		} else {
-			Timer_Start(e.Config.DoorOpenDuration_s)
 		}
 	default:
 	}
