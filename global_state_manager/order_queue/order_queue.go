@@ -363,135 +363,143 @@ func (myQueue *OrderQueue) TransitionMyQueue(myID int, aliveElevators map[int]bo
 	myQueue.Cab[myID] = cabOrders
 } END */
 
+func (myQueue *OrderQueue) TransitionHallOrder(
+	myID int,
+	elevatorStates ElevatorStates,
+	hallOrders *AllHallOrders,
+	floor int,
+	btn int,
+) {
+	myHallOrder := GetHallOrder(myQueue, myID, floor, btn)
+	currentState := myHallOrder.State
+	expectedAssignedTo := myHallOrder.AssignedTo
+	otherHallOrder := myHallOrder // Initialized as my own
+
+	switch currentState {
+	case None:
+		amIAlone := true
+		for _, elevatorPeer := range elevatorStates.Peers {
+			elevatorID := elevatorPeer.ID
+			if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection {
+				continue
+			}
+			// for ID, alive := range aliveElevators {
+			// 	if !alive || ID == myID {
+			// 		continue
+			// 	}
+			amIAlone = false
+			otherHallOrder = GetHallOrder(myQueue, elevatorID, floor, btn)
+			if otherHallOrder.State == Completed {
+				return
+			}
+			if hallOrders[floor][btn].State < otherHallOrder.State {
+				hallOrders[floor][btn].State = otherHallOrder.State
+				hallOrders[floor][btn].AssignedTo = otherHallOrder.AssignedTo
+			}
+		}
+		if amIAlone {
+			hallOrders[floor][btn].State = Unconfirmed
+			hallOrders[floor][btn].AssignedTo = otherHallOrder.AssignedTo
+		}
+		myQueue.Hall[myID] = *hallOrders
+		return
+
+	case Unconfirmed:
+		for _, elevatorPeer := range elevatorStates.Peers {
+			elevatorID := elevatorPeer.ID
+			if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection {
+				continue
+			}
+			// for ID, alive := range aliveElevators {
+			// 	if !alive || ID == myID {
+			// 		continue
+			// 	}
+			otherHallOrder = GetHallOrder(myQueue, elevatorID, floor, btn)
+			if otherHallOrder.State == None || otherHallOrder.State == Completed {
+				myQueue.Hall[myID] = *hallOrders // Ensuring we keep the lowest assignedTo ID even in transition failure
+				return
+			}
+
+			if otherHallOrder.AssignedTo < expectedAssignedTo && otherHallOrder.AssignedTo > noElevatorAssigned {
+				expectedAssignedTo = otherHallOrder.AssignedTo
+			}
+		}
+
+		hallOrders[floor][btn].State = Confirmed
+		hallOrders[floor][btn].AssignedTo = expectedAssignedTo
+		myQueue.Hall[myID] = *hallOrders
+		return
+
+	// Continue from here
+	case Confirmed:
+		for _, elevatorPeer := range elevatorStates.Peers {
+			elevatorID := elevatorPeer.ID
+			if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection {
+				continue
+			}
+			// for ID, alive := range aliveElevators {
+			// 	if !alive || ID == myID {
+			// 		continue
+			// 	}
+			otherHallOrder = GetHallOrder(myQueue, elevatorID, floor, btn)
+			if otherHallOrder.State == None || otherHallOrder.State == Unconfirmed { // Must double check this
+				return
+			} else if otherHallOrder.State == Completed {
+				hallOrders[floor][btn].State = Completed
+				hallOrders[floor][btn].AssignedTo = noElevatorAssigned
+			}
+		}
+		myQueue.Hall[myID] = *hallOrders
+		return
+
+	case Completed:
+		amIAlone := true
+		for _, elevatorPeer := range elevatorStates.Peers {
+			elevatorID := elevatorPeer.ID
+			fmt.Println("Checking queue for ID: ", elevatorID)
+			if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection {
+				continue
+			}
+			// for ID, alive := range aliveElevators {
+			// 	if !alive || ID == myID {
+			// 		continue
+			// 	}
+			amIAlone = false
+			otherHallOrder = GetHallOrder(myQueue, elevatorID, floor, btn)
+			if otherHallOrder.State == Confirmed {
+				fmt.Println("Other elevator was in Confirmed.")
+				return
+			}
+			fmt.Println(otherHallOrder.State)
+			if hallOrders[floor][btn].State < otherHallOrder.State {
+				hallOrders[floor][btn].State = otherHallOrder.State
+				hallOrders[floor][btn].AssignedTo = otherHallOrder.AssignedTo
+			}
+		}
+		if amIAlone {
+			hallOrders[floor][btn].State = None
+			hallOrders[floor][btn].AssignedTo = noElevatorAssigned
+		} else if hallOrders[floor][btn].State == Completed {
+			hallOrders[floor][btn].State = None
+		}
+		myQueue.Hall[myID] = *hallOrders
+		return
+	default:
+		fmt.Println("Undefined order state: ", currentState)
+		return
+	}
+}
+
 func (myQueue *OrderQueue) TransitionHallOrders(
 	myID int,
 	elevatorStates ElevatorStates,
-) bool {
+) {
 	hallOrders := myQueue.Hall[myID]
-
 	for floor := 0; floor < N_FLOORS; floor++ {
 		for btn := 0; btn < hallButtonsPerFloor; btn++ {
-			myHallOrder := GetHallOrder(myQueue, myID, floor, btn)
-			currentState := myHallOrder.State
-			expectedAssignedTo := myHallOrder.AssignedTo
-			otherHallOrder := myHallOrder // Initialized as my own
-
-			switch currentState {
-			case None:
-				amIAlone := true
-				for _, elevatorPeer := range elevatorStates.Peers {
-					elevatorID := elevatorPeer.ID
-					if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection{
-						continue
-					}
-					// for ID, alive := range aliveElevators {
-					// 	if !alive || ID == myID {
-					// 		continue
-					// 	}
-					amIAlone = false
-					otherHallOrder = GetHallOrder(myQueue, elevatorID, floor, btn)
-					if otherHallOrder.State == Completed {
-						return false
-					}
-					if hallOrders[floor][btn].State < otherHallOrder.State {
-						hallOrders[floor][btn].State = otherHallOrder.State
-						hallOrders[floor][btn].AssignedTo = otherHallOrder.AssignedTo
-					}
-				}
-				if amIAlone {
-					hallOrders[floor][btn].State = Unconfirmed
-					hallOrders[floor][btn].AssignedTo = otherHallOrder.AssignedTo
-				}
-				myQueue.Hall[myID] = hallOrders
-				return true
-
-			case Unconfirmed:
-				for _, elevatorPeer := range elevatorStates.Peers {
-					elevatorID := elevatorPeer.ID
-					if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection{
-						continue
-					}
-					// for ID, alive := range aliveElevators {
-					// 	if !alive || ID == myID {
-					// 		continue
-					// 	}
-					otherHallOrder = GetHallOrder(myQueue, elevatorID, floor, btn)
-					if otherHallOrder.State == None || otherHallOrder.State == Completed {
-						myQueue.Hall[myID] = hallOrders // Ensuring we keep the lowest assignedTo ID even in transition failure
-						return false
-					}
-
-					if otherHallOrder.AssignedTo < expectedAssignedTo && otherHallOrder.AssignedTo > noElevatorAssigned {
-						expectedAssignedTo = otherHallOrder.AssignedTo
-					}
-				}
-
-				hallOrders[floor][btn].State = Confirmed
-				hallOrders[floor][btn].AssignedTo = expectedAssignedTo
-				myQueue.Hall[myID] = hallOrders
-				return true
-
-			// Continue from here
-			case Confirmed:
-				for _, elevatorPeer := range elevatorStates.Peers {
-					elevatorID := elevatorPeer.ID
-					if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection{
-						continue
-					}
-					// for ID, alive := range aliveElevators {
-					// 	if !alive || ID == myID {
-					// 		continue
-					// 	}
-					otherHallOrder = GetHallOrder(myQueue, elevatorID, floor, btn)
-					if otherHallOrder.State == None || otherHallOrder.State == Unconfirmed { // Must double check this
-						return false
-					} else if otherHallOrder.State == Completed {
-						hallOrders[floor][btn].State = Completed
-						hallOrders[floor][btn].AssignedTo = noElevatorAssigned
-					}
-				}
-				myQueue.Hall[myID] = hallOrders
-				return true
-
-			case Completed:
-				amIAlone := true
-				for _, elevatorPeer := range elevatorStates.Peers {
-					elevatorID := elevatorPeer.ID
-					fmt.Println("Checking queue for ID: ", elevatorID)
-					if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection{
-						continue
-					}
-					// for ID, alive := range aliveElevators {
-					// 	if !alive || ID == myID {
-					// 		continue
-					// 	}
-					amIAlone = false
-					otherHallOrder = GetHallOrder(myQueue, elevatorID, floor, btn)
-					if otherHallOrder.State == Confirmed {
-						fmt.Println("Other elevator was in Confirmed.")
-						return false
-					}
-					fmt.Println(otherHallOrder.State)
-					if hallOrders[floor][btn].State < otherHallOrder.State {
-						hallOrders[floor][btn].State = otherHallOrder.State
-						hallOrders[floor][btn].AssignedTo = otherHallOrder.AssignedTo
-					}
-				}
-				if amIAlone {
-					hallOrders[floor][btn].State = None
-					hallOrders[floor][btn].AssignedTo = noElevatorAssigned
-				} else if hallOrders[floor][btn].State == Completed {
-					hallOrders[floor][btn].State = None
-				}
-				myQueue.Hall[myID] = hallOrders
-				return true
-			default:
-				fmt.Println("Undefined order state: ", currentState)
-				return false
-			}
+			myQueue.TransitionHallOrder(myID, elevatorStates, &hallOrders, floor, btn)
 		}
 	}
-	return false
 }
 
 func (myQueue *OrderQueue) TransitionCabOrders(
@@ -512,7 +520,7 @@ func (myQueue *OrderQueue) TransitionCabOrders(
 				amIAlone := true
 				for _, elevatorPeer := range elevatorStates.Peers {
 					elevatorID := elevatorPeer.ID
-					if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection{
+					if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection {
 						continue
 					}
 					// for ID, alive := range aliveElevators {
@@ -537,7 +545,7 @@ func (myQueue *OrderQueue) TransitionCabOrders(
 			case Unconfirmed:
 				for _, elevatorPeer := range elevatorStates.Peers {
 					elevatorID := elevatorPeer.ID
-					if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection{
+					if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection {
 						continue
 					}
 					// for ID, alive := range aliveElevators {
