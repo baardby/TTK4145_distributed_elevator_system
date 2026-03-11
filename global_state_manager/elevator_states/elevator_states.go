@@ -5,12 +5,20 @@ import (
 	. "distributed_elevator/elevio"
 )
 
+type ElevatorStatus int
+
+const (
+	StatusOK ElevatorStatus = iota
+	StatusHardwareFault
+	StatusLostConnection
+)
+
 type ElevatorPeer struct {
-	Floor     int
-	Direction MotorDirection
-	Behaviour ElevatorBehaviour
-	Alive     bool
-	ID        int
+	Floor         int
+	Direction     MotorDirection
+	Behaviour     ElevatorBehaviour
+	WorkingStatus ElevatorStatus
+	ID            int
 }
 
 type ElevatorStates struct {
@@ -25,28 +33,28 @@ func GenerateNewElevatorStates() ElevatorStates {
 	var elevatorStates ElevatorStates
 	for i := 0; i < N_ELEVATORS; i++ {
 		elevatorStates.Peers[i] = ElevatorPeer{
-			Floor:     -1,
-			Direction: MD_Stop,
-			Behaviour: EB_Idle,
-			Alive:     false,
-			ID:        i,
+			Floor:         -1,
+			Direction:     MD_Stop,
+			Behaviour:     EB_Idle,
+			WorkingStatus: StatusLostConnection,
+			ID:            i,
 		}
 	}
 	return elevatorStates
 }
 
-func UpdateAliveElevatorsMap(elevatorStates ElevatorStates, aliveElevatorsMap map[int]bool) {
+/*func UpdateAliveElevatorsMap(elevatorStates ElevatorStates, aliveElevatorsMap map[int]bool) {
 	for i := 0; i < N_ELEVATORS; i++ {
 		aliveElevatorsMap[elevatorStates.Peers[i].ID] = elevatorStates.Peers[i].Alive
 	}
-}
+}*/ //Fjern senere
 
 func ThisElevatorToElevatorPeer(elevator Elevator, MyId int) ElevatorPeer {
 	return ElevatorPeer{
-		Floor:     elevator.Floor,
-		Direction: elevator.Direction,
-		Behaviour: elevator.Behaviour,
-		Alive:     true,
-		ID:        MyId,
+		Floor:         elevator.Floor,
+		Direction:     elevator.Direction,
+		Behaviour:     elevator.Behaviour,
+		WorkingStatus: StatusOK,
+		ID:            MyId,
 	}
 }
