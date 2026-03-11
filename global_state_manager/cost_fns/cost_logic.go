@@ -46,7 +46,7 @@ func AssignNewOrder(newOrder ButtonEvent, elevatorStates ElevatorStates, cabOrde
 
 		for elevatorPeer := 0; elevatorPeer < N_ELEVATORS; elevatorPeer++ {
 			currentPeerID := elevatorPeer + 1
-			if elevatorStates.Peers[elevatorPeer].Alive {
+			if elevatorStates.Peers[elevatorPeer].WorkingStatus == StatusOK {
 				input.States[iDToString(currentPeerID)] = HRAElevState{
 					Behavior:    Elevator_BehaviourToString(elevatorStates.Peers[elevatorPeer].Behaviour),
 					Floor:       elevatorStates.Peers[elevatorPeer].Floor,
@@ -103,7 +103,7 @@ func AssignNewOrder(newOrder ButtonEvent, elevatorStates ElevatorStates, cabOrde
 
 		for elevatorPeer := 0; elevatorPeer < N_ELEVATORS; elevatorPeer++ {
 			currentPeerID := elevatorPeer + 1
-			if elevatorStates.Peers[elevatorPeer].Alive {
+			if elevatorStates.Peers[elevatorPeer].WorkingStatus == StatusOK {
 				input.States[iDToString(currentPeerID)] = HRAElevState{
 					Behavior:    Elevator_BehaviourToString(elevatorStates.Peers[elevatorPeer].Behaviour),
 					Floor:       elevatorStates.Peers[elevatorPeer].Floor,
@@ -202,9 +202,9 @@ func extractCabOrder(elevatorID int, cabOrders AllCabOrders) []bool {
 func TestCostLogic() {
 	elevatorStates := ElevatorStates{
 		Peers: [N_ELEVATORS]ElevatorPeer{
-			{Alive: true, Floor: 0, Behaviour: ElevatorBehaviour(0), Direction: MotorDirection(0)},
-			{Alive: true, Floor: 0, Behaviour: ElevatorBehaviour(0), Direction: MotorDirection(0)},
-			{Alive: true, Floor: 0, Behaviour: ElevatorBehaviour(0), Direction: MotorDirection(0)},
+			{WorkingStatus: StatusOK, Floor: 0, Behaviour: ElevatorBehaviour(0), Direction: MotorDirection(0)},
+			{WorkingStatus: StatusOK, Floor: 0, Behaviour: ElevatorBehaviour(0), Direction: MotorDirection(0)},
+			{WorkingStatus: StatusOK, Floor: 0, Behaviour: ElevatorBehaviour(0), Direction: MotorDirection(0)},
 		},
 	}
 
