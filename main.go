@@ -3,8 +3,10 @@ package main
 import (
 	. "distributed_elevator/elevalgo"
 	. "distributed_elevator/elevio"
-
-	//. "distributed_elevator/network"
+	. "distributed_elevator/global_state_manager/elevator_states"
+	. "distributed_elevator/global_state_manager/order_queue"
+	. "distributed_elevator/network"
+	. "distributed_elevator/network/message"
 	"flag"
 	"fmt"
 	"os"
@@ -33,10 +35,10 @@ func main() {
 	obstrEvent := make(chan bool)
 	updateElevatorEvent := make(chan Elevator)
 
-	//receivedFromPeerEvent := make(chan int)
-	//receivedMessageEvent := make(chan Message)
-	//newElevStateToSendEvent := make(chan Elevator)
-	//newRequestQueueToSendEvent := make(chan OrderQueue)
+	receivedFromPeerEvent := make(chan int)
+	receivedMessageEvent := make(chan Message)
+	newElevStateToSendEvent := make(chan ElevatorPeer)
+	newRequestQueueToSendEvent := make(chan OrderQueue)
 
 	updateQueueEvent := make(chan [N_FLOORS][N_BUTTONS]bool)
 
@@ -57,8 +59,12 @@ func main() {
 		updateElevatorEvent)
 
 	// Network goroutines
-	//go Network_ListenerLoop(receivedFromPeerEvent, receivedMessageEvent)
-	//go Network_SenderLoop(newElevStateToSendEvent, newRequestQueueToSendEvent)
+	go Network_ListenerLoop(ID,
+		receivedFromPeerEvent,
+		receivedMessageEvent)
+	go Network_SenderLoop(ID,
+		newElevStateToSendEvent,
+		newRequestQueueToSendEvent)
 
 	select {}
 }
