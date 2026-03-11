@@ -42,14 +42,19 @@ func Elevalgo_ElevatorControllerLoop(updateQueueEvent <-chan [N_FLOORS][N_BUTTON
 			SetStopLamp(stopButtonState) // CAN REMOVE
 		case currentObstrState := <-obstrEvent:
 			elevator.SetObstr(currentObstrState)
+
+			// When obstruction disappears, restart doorOpenTimer
+			if !currentObstrState {
+				Timer_Start(elevator.Config.DoorOpenDuration_s)
+			}
 		case <-updateElevatorTicker.C:
 			select {
-				// Try send new update
-			case updateElevatorEvent<-elevator:
-				// Dump the channel if the old message wasn't received
+			// Try send new update
+			case updateElevatorEvent <- elevator:
+			// Dump the channel if the old message wasn't received
 			default:
 				<-updateElevatorEvent
-				updateElevatorEvent<-elevator
+				updateElevatorEvent <- elevator
 			}
 		default:
 			if Timer_TimedOut() {

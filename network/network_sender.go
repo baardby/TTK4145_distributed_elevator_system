@@ -11,7 +11,6 @@ import (
 )
 
 type NetworkSender struct {
-	DestID     int // DO WE NEED THIS?
 	DestIP     string
 	DestPort   string
 	DestAddr   *net.UDPAddr

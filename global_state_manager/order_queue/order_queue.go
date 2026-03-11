@@ -140,10 +140,6 @@ func (queue *OrderQueue) AppendNewOrder(btnEv ButtonEvent, myID int, elevatorSta
 		fmt.Println("Attempted to append order at invalid floor: ", floor)
 		return
 	}
-	if elevatorStates.Peers[myID].WorkingStatus != StatusOK {
-		fmt.Println("Attempted to append an order for non-working elevator.")
-		return
-	}
 	if IsOrderInProgress(queue, elevatorStates, btnEv) {
 		fmt.Println("Order is already in progress.")
 		return
@@ -370,8 +366,6 @@ func (myQueue *OrderQueue) TransitionMyQueue(myID int, aliveElevators map[int]bo
 func (myQueue *OrderQueue) TransitionHallOrders(
 	myID int,
 	elevatorStates ElevatorStates,
-	floor int,
-	btn int,
 ) bool {
 	hallOrders := myQueue.Hall[myID]
 
@@ -387,13 +381,13 @@ func (myQueue *OrderQueue) TransitionHallOrders(
 				amIAlone := true
 				for _, elevatorPeer := range elevatorStates.Peers {
 					elevatorID := elevatorPeer.ID
-					if elevatorPeer.WorkingStatus == StatusLostConnection || elevatorID == myID {
+					if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection{
 						continue
 					}
-				// for ID, alive := range aliveElevators {
-				// 	if !alive || ID == myID {
-				// 		continue
-				// 	}
+					// for ID, alive := range aliveElevators {
+					// 	if !alive || ID == myID {
+					// 		continue
+					// 	}
 					amIAlone = false
 					otherHallOrder = GetHallOrder(myQueue, elevatorID, floor, btn)
 					if otherHallOrder.State == Completed {
@@ -414,13 +408,13 @@ func (myQueue *OrderQueue) TransitionHallOrders(
 			case Unconfirmed:
 				for _, elevatorPeer := range elevatorStates.Peers {
 					elevatorID := elevatorPeer.ID
-					if elevatorID == myID {
+					if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection{
 						continue
 					}
-				// for ID, alive := range aliveElevators {
-				// 	if !alive || ID == myID {
-				// 		continue
-				// 	}
+					// for ID, alive := range aliveElevators {
+					// 	if !alive || ID == myID {
+					// 		continue
+					// 	}
 					otherHallOrder = GetHallOrder(myQueue, elevatorID, floor, btn)
 					if otherHallOrder.State == None || otherHallOrder.State == Completed {
 						myQueue.Hall[myID] = hallOrders // Ensuring we keep the lowest assignedTo ID even in transition failure
@@ -441,20 +435,21 @@ func (myQueue *OrderQueue) TransitionHallOrders(
 			case Confirmed:
 				for _, elevatorPeer := range elevatorStates.Peers {
 					elevatorID := elevatorPeer.ID
-					if elevatorID == myID {
+					if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection{
 						continue
 					}
-				// for ID, alive := range aliveElevators {
-				// 	if !alive || ID == myID {
-				// 		continue
-				// 	}
+					// for ID, alive := range aliveElevators {
+					// 	if !alive || ID == myID {
+					// 		continue
+					// 	}
 					otherHallOrder = GetHallOrder(myQueue, elevatorID, floor, btn)
-					if otherHallOrder.State != Completed { // Must double check this
+					if otherHallOrder.State == None || otherHallOrder.State == Unconfirmed { // Must double check this
 						return false
+					} else if otherHallOrder.State == Completed {
+						hallOrders[floor][btn].State = Completed
+						hallOrders[floor][btn].AssignedTo = noElevatorAssigned
 					}
 				}
-				hallOrders[floor][btn].State = Completed
-				hallOrders[floor][btn].AssignedTo = noElevatorAssigned
 				myQueue.Hall[myID] = hallOrders
 				return true
 
@@ -462,18 +457,21 @@ func (myQueue *OrderQueue) TransitionHallOrders(
 				amIAlone := true
 				for _, elevatorPeer := range elevatorStates.Peers {
 					elevatorID := elevatorPeer.ID
-					if elevatorID == myID {
+					fmt.Println("Checking queue for ID: ", elevatorID)
+					if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection{
 						continue
 					}
-				// for ID, alive := range aliveElevators {
-				// 	if !alive || ID == myID {
-				// 		continue
-				// 	}
+					// for ID, alive := range aliveElevators {
+					// 	if !alive || ID == myID {
+					// 		continue
+					// 	}
 					amIAlone = false
 					otherHallOrder = GetHallOrder(myQueue, elevatorID, floor, btn)
 					if otherHallOrder.State == Confirmed {
+						fmt.Println("Other elevator was in Confirmed.")
 						return false
 					}
+					fmt.Println(otherHallOrder.State)
 					if hallOrders[floor][btn].State < otherHallOrder.State {
 						hallOrders[floor][btn].State = otherHallOrder.State
 						hallOrders[floor][btn].AssignedTo = otherHallOrder.AssignedTo
@@ -482,6 +480,8 @@ func (myQueue *OrderQueue) TransitionHallOrders(
 				if amIAlone {
 					hallOrders[floor][btn].State = None
 					hallOrders[floor][btn].AssignedTo = noElevatorAssigned
+				} else if hallOrders[floor][btn].State == Completed {
+					hallOrders[floor][btn].State = None
 				}
 				myQueue.Hall[myID] = hallOrders
 				return true
@@ -497,7 +497,6 @@ func (myQueue *OrderQueue) TransitionHallOrders(
 func (myQueue *OrderQueue) TransitionCabOrders(
 	myID int,
 	elevatorStates ElevatorStates,
-	floor int,
 ) bool {
 	cabOrders := myQueue.Cab[myID]
 
@@ -513,13 +512,13 @@ func (myQueue *OrderQueue) TransitionCabOrders(
 				amIAlone := true
 				for _, elevatorPeer := range elevatorStates.Peers {
 					elevatorID := elevatorPeer.ID
-					if elevatorID == myID {
+					if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection{
 						continue
 					}
-				// for ID, alive := range aliveElevators {
-				// 	if !alive || ID == myID {
-				// 		continue
-				// 	}
+					// for ID, alive := range aliveElevators {
+					// 	if !alive || ID == myID {
+					// 		continue
+					// 	}
 					amIAlone = false
 					otherCabOrder = GetCabOrder(myQueue, elevatorID, floor, assignedElevatorID)
 					if otherCabOrder == Completed {
@@ -538,13 +537,13 @@ func (myQueue *OrderQueue) TransitionCabOrders(
 			case Unconfirmed:
 				for _, elevatorPeer := range elevatorStates.Peers {
 					elevatorID := elevatorPeer.ID
-					if elevatorID == myID {
+					if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection{
 						continue
 					}
-				// for ID, alive := range aliveElevators {
-				// 	if !alive || ID == myID {
-				// 		continue
-				// 	}
+					// for ID, alive := range aliveElevators {
+					// 	if !alive || ID == myID {
+					// 		continue
+					// 	}
 					otherCabOrder = GetCabOrder(myQueue, elevatorID, floor, assignedElevatorID)
 					if otherCabOrder == None || otherCabOrder == Completed {
 						return false
@@ -559,19 +558,20 @@ func (myQueue *OrderQueue) TransitionCabOrders(
 			case Confirmed:
 				for _, elevatorPeer := range elevatorStates.Peers {
 					elevatorID := elevatorPeer.ID
-					if elevatorID == myID {
+					if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection {
 						continue
 					}
-				// for ID, alive := range aliveElevators {
-				// 	if !alive || ID == myID {
-				// 		continue
-				// 	}
+					// for ID, alive := range aliveElevators {
+					// 	if !alive || ID == myID {
+					// 		continue
+					// 	}
 					otherCabOrder = GetCabOrder(myQueue, elevatorID, floor, assignedElevatorID)
-					if otherCabOrder != Completed { // Must double check this
+					if otherCabOrder == None || otherCabOrder == Unconfirmed { // Must double check this
 						return false
+					} else if otherCabOrder == Completed {
+						cabOrders[floor][assignedElevatorID] = Completed
 					}
 				}
-				cabOrders[floor][assignedElevatorID] = Completed
 				myQueue.Cab[myID] = cabOrders
 				return true
 
@@ -579,13 +579,13 @@ func (myQueue *OrderQueue) TransitionCabOrders(
 				amIAlone := true
 				for _, elevatorPeer := range elevatorStates.Peers {
 					elevatorID := elevatorPeer.ID
-					if elevatorID == myID {
+					if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection {
 						continue
 					}
-				// for ID, alive := range aliveElevators {
-				// 	if !alive || ID == myID {
-				// 		continue
-				// 	}
+					// for ID, alive := range aliveElevators {
+					// 	if !alive || ID == myID {
+					// 		continue
+					// 	}
 					amIAlone = false
 					otherCabOrder = GetCabOrder(myQueue, elevatorID, floor, assignedElevatorID)
 					if otherCabOrder == Confirmed {
@@ -597,6 +597,8 @@ func (myQueue *OrderQueue) TransitionCabOrders(
 				}
 				if amIAlone {
 					cabOrders[floor][assignedElevatorID] = None
+				} else if cabOrders[floor][assignedElevatorID] == Completed {
+					cabOrders[floor][assignedElevatorID] = None
 				}
 				myQueue.Cab[myID] = cabOrders
 				return true
@@ -607,4 +609,93 @@ func (myQueue *OrderQueue) TransitionCabOrders(
 		}
 	}
 	return false
+}
+
+func TestOrderQueue() {
+	myId := 1
+	yourId := 2
+	hisId := 3
+
+	viewOfQueue := GenerateEmptyOrderQueue()
+	AddElevatorToQueue(&viewOfQueue, myId)
+	AddElevatorToQueue(&viewOfQueue, yourId)
+	AddElevatorToQueue(&viewOfQueue, hisId)
+
+	elevatorStates := GenerateNewElevatorStates()
+	elevatorStates.Peers[myId-1].WorkingStatus = StatusOK
+	elevatorStates.Peers[myId-1].ID = myId
+	elevatorStates.Peers[myId-1].Floor = 0
+	elevatorStates.Peers[yourId-1].WorkingStatus = StatusOK
+	elevatorStates.Peers[yourId-1].ID = yourId
+	elevatorStates.Peers[yourId-1].Floor = 0
+	elevatorStates.Peers[hisId-1].WorkingStatus = StatusOK
+	elevatorStates.Peers[hisId-1].ID = hisId
+	elevatorStates.Peers[hisId-1].Floor = 0
+
+	newButtonPress := ButtonEvent{
+		Floor:  0,
+		Button: ButtonType(0),
+	}
+
+	assignTo := myId
+
+	viewOfQueue.TransitionHallOrders(myId, elevatorStates)
+
+	viewOfQueue.TransitionHallOrders(yourId, elevatorStates)
+
+	viewOfQueue.TransitionHallOrders(hisId, elevatorStates)
+
+	for k, v := range viewOfQueue.Hall {
+		fmt.Printf("%6v :  %+v\n", k, v)
+	}
+
+	viewOfQueue.AppendNewOrder(newButtonPress, myId, elevatorStates, assignTo)
+
+	viewOfQueue.TransitionHallOrders(yourId, elevatorStates)
+
+	viewOfQueue.TransitionHallOrders(hisId, elevatorStates)
+
+	for k, v := range viewOfQueue.Hall {
+		fmt.Printf("%6v :  %+v\n", k, v)
+	}
+
+	viewOfQueue.TransitionHallOrders(myId, elevatorStates)
+
+	viewOfQueue.TransitionHallOrders(yourId, elevatorStates)
+
+	viewOfQueue.TransitionHallOrders(hisId, elevatorStates)
+
+	for k, v := range viewOfQueue.Hall {
+		fmt.Printf("%6v :  %+v\n", k, v)
+	}
+
+	viewOfQueue.TransitionHallOrders(yourId, elevatorStates)
+
+	viewOfQueue.TransitionHallOrders(myId, elevatorStates)
+
+	viewOfQueue.TransitionHallOrders(hisId, elevatorStates)
+
+	for k, v := range viewOfQueue.Hall {
+		fmt.Printf("%6v :  %+v\n", k, v)
+	}
+
+	viewOfQueue.CompleteMyOrder(newButtonPress, elevatorStates, assignTo)
+
+	viewOfQueue.TransitionHallOrders(yourId, elevatorStates)
+
+	viewOfQueue.TransitionHallOrders(hisId, elevatorStates)
+
+	for k, v := range viewOfQueue.Hall {
+		fmt.Printf("%6v :  %+v\n", k, v)
+	}
+
+	newButtonPress = ButtonEvent{
+		Floor:  2,
+		Button: ButtonType(2),
+	}
+
+	fmt.Printf("output: \n")
+	for k, v := range viewOfQueue.Cab {
+		fmt.Printf("%6v :  %+v\n", k, v)
+	}
 }
