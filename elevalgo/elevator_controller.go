@@ -17,10 +17,18 @@ func Elevalgo_ElevatorControllerLoop(updateQueueEvent <-chan [N_FLOORS][N_BUTTON
 	updateElevatorTicker := time.NewTicker(100 * time.Millisecond) // CHANGE TO CORRECT TIME 50Hz?
 	defer updateElevatorTicker.Stop()
 
-	//startFloor := <- newFloorEvent
-	//if startFloor == -1 {
-	//	Fsm_OnInitBetweenFloors(&elevator)
-	//}
+	select { // TODO: Test this with the physical elevator
+	// If a new floor can be received, the elevator is not between floors. Do nothing
+	case startFloor := <-newFloorEvent:
+		Fsm_OnFloorArrival(&elevator, startFloor)
+
+	// If a new floor can't be received, the elevator is between floors. Go down
+	default:
+		Fsm_OnInitBetweenFloors(&elevator) // TODO: Press a button when starting between floors. request_here() will probably make this fail and crash
+		// Possible solution: Refuse to service orders until inbetween floors using the newFloorChannel to block.
+		// startFloor := <-newFloorEvent
+		// Fsm_OnFloorArrival(&elevator, startFloor)
+	}
 
 	for {
 		select {

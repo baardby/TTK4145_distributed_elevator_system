@@ -29,64 +29,7 @@ func AssignNewOrder(newOrder ButtonEvent, elevatorStates ElevatorStates, cabOrde
 	case BT_Cab:
 		IDAssigned = myID
 
-	case BT_HallDown:
-		hraExecutable := ""
-		switch runtime.GOOS {
-		case "linux":
-			hraExecutable = "hall_request_assigner"
-		case "windows":
-			hraExecutable = "hall_request_assigner.exe"
-		default:
-			panic("OS not supported")
-		}
-
-		input := makeHRAIInput()
-
-		input.HallRequests[newOrder.Floor][int(newOrder.Button)] = true
-
-		for elevatorPeer := 0; elevatorPeer < N_ELEVATORS; elevatorPeer++ {
-			currentPeerID := elevatorPeer + 1
-			if elevatorStates.Peers[elevatorPeer].WorkingStatus == StatusOK {
-				input.States[iDToString(currentPeerID)] = HRAElevState{
-					Behavior:    Elevator_BehaviourToString(elevatorStates.Peers[elevatorPeer].Behaviour),
-					Floor:       elevatorStates.Peers[elevatorPeer].Floor,
-					Direction:   Elevator_MotorDirectionToString(elevatorStates.Peers[elevatorPeer].Direction),
-					CabRequests: extractCabOrder(currentPeerID, cabOrders),
-				}
-			}
-		}
-
-		// Encode the input to json to be sent to executable
-		jsonBytes, err := json.Marshal(input)
-		if err != nil {
-			fmt.Println("json.Marshal error: ", err)
-			return
-		}
-		// Start the hall_request_assigner executable
-		ret, err := exec.Command("global_state_manager/cost_fns/hall_request_assigner/"+hraExecutable, "-i", string(jsonBytes)).CombinedOutput()
-		if err != nil {
-			fmt.Println("exec.Command error: ", err)
-			fmt.Println(string(ret))
-			return
-		}
-
-		// Decode output from executable
-		output := new(map[string][][2]bool)
-		err = json.Unmarshal(ret, &output)
-		if err != nil {
-			fmt.Println("json.Unmarshal error: ", err)
-			return
-		}
-
-		// Find which elevator that was assigned the order
-		for string_ID, assignedHallRequests := range *output {
-			if assignedHallRequests[newOrder.Floor][int(newOrder.Button)] {
-				IDAssigned = iDToInt(string_ID)
-			}
-		}
-		return
-
-	case BT_HallUp:
+	case BT_HallDown, BT_HallUp:
 		hraExecutable := ""
 		switch runtime.GOOS {
 		case "linux":

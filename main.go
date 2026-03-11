@@ -1,12 +1,14 @@
 package main
 
 import (
-	//. "distributed_elevator/elevalgo"
+	. "distributed_elevator/elevalgo"
 	. "distributed_elevator/elevio"
-	//. "distributed_elevator/global_state_manager/elevator_states"
+	. "distributed_elevator/global_state_manager"
+	. "distributed_elevator/global_state_manager/elevator_states"
 	. "distributed_elevator/global_state_manager/order_queue"
-	//. "distributed_elevator/network"
-	//. "distributed_elevator/network/message"
+	. "distributed_elevator/network"
+	. "distributed_elevator/network/message"
+	. "distributed_elevator/supervisor"
 	"flag"
 	"fmt"
 	"os"
@@ -33,14 +35,16 @@ func main() {
 	newFloorEvent := make(chan int)
 	stopEvent := make(chan bool)
 	obstrEvent := make(chan bool)
-	//updateElevatorEvent := make(chan Elevator, 1)
+	updateElevatorEvent := make(chan Elevator, 1)
 
-	//receivedFromPeerEvent := make(chan int)
-	//receivedMessageEvent := make(chan Message)
-	//newElevStateToSendEvent := make(chan ElevatorPeer)
-	//newRequestQueueToSendEvent := make(chan OrderQueue)
+	receivedFromPeerEvent := make(chan int)
+	receivedMessageEvent := make(chan Message)
+	newElevStateToSendEvent := make(chan ElevatorPeer)
+	newOrderQueueToSendEvent := make(chan OrderQueue)
 
-	//updateQueueEvent := make(chan [N_FLOORS][N_BUTTONS]bool)
+	updateQueueEvent := make(chan [N_FLOORS][N_BUTTONS]bool)
+
+	supervisorEvent := make(chan SupervisorEvent)
 
 	// Starting goroutines
 
@@ -51,23 +55,35 @@ func main() {
 	go PollStopButton(stopEvent)
 
 	// Elevator algorithm goroutines
-	//go Elevalgo_ElevatorControllerLoop(updateQueueEvent,
-	//	newFloorEvent,
-	//	stopEvent,
-	//	obstrEvent,
-	//	newButtonEvent,
-	//	updateElevatorEvent)
+	go Elevalgo_ElevatorControllerLoop(updateQueueEvent,
+		newFloorEvent,
+		stopEvent,
+		obstrEvent,
+		newButtonEvent,
+		updateElevatorEvent)
 
 	// Network goroutines
-	//go Network_ListenerLoop(ID,
-	//	receivedFromPeerEvent,
-	//	receivedMessageEvent)
-	//go Network_SenderLoop(ID,
-	//	newElevStateToSendEvent,
-	//	newRequestQueueToSendEvent)
+	go Network_ListenerLoop(ID,
+		receivedFromPeerEvent,
+		receivedMessageEvent)
+	go Network_SenderLoop(ID,
+		newElevStateToSendEvent,
+		newOrderQueueToSendEvent)
+
+	// GSM goroutines
+	go Global_State_Manager(ID,
+		supervisorEvent,
+		receivedMessageEvent,
+		updateElevatorEvent,
+		newButtonEvent,
+		updateQueueEvent,
+		newElevStateToSendEvent,
+		newOrderQueueToSendEvent)
+
+	// Supervisor goroutines
 
 	// TEST ZONE
-	TestOrderQueue()
+	//TestOrderQueue()
 
 	select {}
 }
