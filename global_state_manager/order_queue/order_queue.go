@@ -58,8 +58,18 @@ func IsElevatorInQueue(queue *OrderQueue, viewerID int) bool {
 // Function must be called with any elevator that is added to the system, before it can be assigned orders
 func AddElevatorToQueue(queue *OrderQueue, viewerID int) {
 	if !IsElevatorInQueue(queue, viewerID) {
-		queue.Hall[viewerID] = AllHallOrders{}
-		queue.Cab[viewerID] = AllCabOrders{}
+		queue.Hall[viewerID] = AllHallOrders{
+			{{State: None, AssignedTo: noElevatorAssigned}, {State: None, AssignedTo: noElevatorAssigned}},
+			{{State: None, AssignedTo: noElevatorAssigned}, {State: None, AssignedTo: noElevatorAssigned}},
+			{{State: None, AssignedTo: noElevatorAssigned}, {State: None, AssignedTo: noElevatorAssigned}},
+			{{State: None, AssignedTo: noElevatorAssigned}, {State: None, AssignedTo: noElevatorAssigned}},
+		}
+		queue.Cab[viewerID] = AllCabOrders{
+			{None, None, None},
+			{None, None, None},
+			{None, None, None},
+			{None, None, None},
+		}
 	}
 }
 
@@ -257,8 +267,8 @@ func (myQueue *OrderQueue) TransitionSingleHallOrder(
 			}
 		}
 		if amIAlone {
-			hallOrders[floor][btn].State = Unconfirmed
-			hallOrders[floor][btn].AssignedTo = otherHallOrder.AssignedTo
+			hallOrders[floor][btn].State = None
+			hallOrders[floor][btn].AssignedTo = noElevatorAssigned
 		}
 		myQueue.Hall[myID] = *hallOrders
 		return
@@ -499,10 +509,10 @@ func TestOrderQueue() {
 	elevatorStates.Peers[myId-1].WorkingStatus = StatusOK
 	elevatorStates.Peers[myId-1].ID = myId
 	elevatorStates.Peers[myId-1].Floor = 0
-	elevatorStates.Peers[yourId-1].WorkingStatus = StatusOK
+	elevatorStates.Peers[yourId-1].WorkingStatus = StatusLostConnection
 	elevatorStates.Peers[yourId-1].ID = yourId
 	elevatorStates.Peers[yourId-1].Floor = 0
-	elevatorStates.Peers[hisId-1].WorkingStatus = StatusOK
+	elevatorStates.Peers[hisId-1].WorkingStatus = StatusLostConnection
 	elevatorStates.Peers[hisId-1].ID = hisId
 	elevatorStates.Peers[hisId-1].Floor = 0
 
@@ -513,56 +523,92 @@ func TestOrderQueue() {
 
 	assignTo := myId
 
-	viewOfQueue.TransitionHallOrders(myId, elevatorStates)
-
-	viewOfQueue.TransitionHallOrders(yourId, elevatorStates)
-
-	viewOfQueue.TransitionHallOrders(hisId, elevatorStates)
-
-	for k, v := range viewOfQueue.Hall {
-		fmt.Printf("%6v :  %+v\n", k, v)
-	}
-
+	// Test reconnection behaviour
+	viewOfQueue.TransitionAllHallOrders(myId, elevatorStates)
 	viewOfQueue.AppendNewOrder(newButtonPress, myId, elevatorStates, assignTo)
 
-	viewOfQueue.TransitionHallOrders(yourId, elevatorStates)
+	for k, v := range viewOfQueue.Hall {
+		fmt.Printf("%6v :  %+v\n", k, v)
+	}
 
-	viewOfQueue.TransitionHallOrders(hisId, elevatorStates)
+	viewOfQueue.TransitionAllHallOrders(myId, elevatorStates)
 
 	for k, v := range viewOfQueue.Hall {
 		fmt.Printf("%6v :  %+v\n", k, v)
 	}
 
-	viewOfQueue.TransitionHallOrders(myId, elevatorStates)
+	elevatorStates.Peers[yourId-1].WorkingStatus = StatusOK
+	elevatorStates.Peers[hisId-1].WorkingStatus = StatusOK
+	elevatorStates.Peers[myId-1].WorkingStatus = StatusLostConnection
 
-	viewOfQueue.TransitionHallOrders(yourId, elevatorStates)
+	viewOfQueue.TransitionAllHallOrders(yourId, elevatorStates)
 
-	viewOfQueue.TransitionHallOrders(hisId, elevatorStates)
+	viewOfQueue.TransitionAllHallOrders(hisId, elevatorStates)
 
-	for k, v := range viewOfQueue.Hall {
-		fmt.Printf("%6v :  %+v\n", k, v)
-	}
+	elevatorStates.Peers[myId-1].WorkingStatus = StatusOK
 
-	viewOfQueue.TransitionHallOrders(yourId, elevatorStates)
+	viewOfQueue.TransitionAllHallOrders(myId, elevatorStates)
 
-	viewOfQueue.TransitionHallOrders(myId, elevatorStates)
+	viewOfQueue.TransitionAllHallOrders(yourId, elevatorStates)
 
-	viewOfQueue.TransitionHallOrders(hisId, elevatorStates)
-
-	for k, v := range viewOfQueue.Hall {
-		fmt.Printf("%6v :  %+v\n", k, v)
-	}
-
-	viewOfQueue.CompleteMyOrder(newButtonPress, elevatorStates, assignTo)
-
-	viewOfQueue.TransitionHallOrders(yourId, elevatorStates)
-
-	viewOfQueue.TransitionHallOrders(hisId, elevatorStates)
+	viewOfQueue.TransitionAllHallOrders(hisId, elevatorStates)
 
 	for k, v := range viewOfQueue.Hall {
 		fmt.Printf("%6v :  %+v\n", k, v)
 	}
 
+	// Test normal behaviour
+	/*
+		viewOfQueue.TransitionAllHallOrders(myId, elevatorStates)
+
+		viewOfQueue.TransitionAllHallOrders(yourId, elevatorStates)
+
+		viewOfQueue.TransitionAllHallOrders(hisId, elevatorStates)
+
+		for k, v := range viewOfQueue.Hall {
+			fmt.Printf("%6v :  %+v\n", k, v)
+		}
+
+		viewOfQueue.AppendNewOrder(newButtonPress, myId, elevatorStates, assignTo)
+
+		viewOfQueue.TransitionAllHallOrders(yourId, elevatorStates)
+
+		viewOfQueue.TransitionAllHallOrders(hisId, elevatorStates)
+
+		for k, v := range viewOfQueue.Hall {
+			fmt.Printf("%6v :  %+v\n", k, v)
+		}
+
+		viewOfQueue.TransitionAllHallOrders(myId, elevatorStates)
+
+		viewOfQueue.TransitionAllHallOrders(yourId, elevatorStates)
+
+		viewOfQueue.TransitionAllHallOrders(hisId, elevatorStates)
+
+		for k, v := range viewOfQueue.Hall {
+			fmt.Printf("%6v :  %+v\n", k, v)
+		}
+
+		viewOfQueue.TransitionAllHallOrders(yourId, elevatorStates)
+
+		viewOfQueue.TransitionAllHallOrders(myId, elevatorStates)
+
+		viewOfQueue.TransitionAllHallOrders(hisId, elevatorStates)
+
+		for k, v := range viewOfQueue.Hall {
+			fmt.Printf("%6v :  %+v\n", k, v)
+		}
+
+		viewOfQueue.CompleteMyOrder(newButtonPress, elevatorStates, assignTo)
+
+		viewOfQueue.TransitionAllHallOrders(yourId, elevatorStates)
+
+		viewOfQueue.TransitionAllHallOrders(hisId, elevatorStates)
+
+		for k, v := range viewOfQueue.Hall {
+			fmt.Printf("%6v :  %+v\n", k, v)
+		}
+	*/
 	newButtonPress = ButtonEvent{
 		Floor:  2,
 		Button: ButtonType(2),
