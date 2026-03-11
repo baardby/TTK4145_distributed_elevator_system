@@ -1,4 +1,4 @@
-package elevator_states //Må endres hvis det puttes inn i en mappe
+package elevator_states
 
 import (
 	. "distributed_elevator/elevalgo"
@@ -25,7 +25,10 @@ type ElevatorStates struct {
 	Peers [N_ELEVATORS]ElevatorPeer
 }
 
-func (elevatorStates *ElevatorStates) UpdateElevatorState(elevatorPeer ElevatorPeer) {
+func (elevatorStates *ElevatorStates) UpdatePeer(elevatorPeer ElevatorPeer, myId int) {
+	if elevatorPeer.ID == myId {
+		elevatorPeer.WorkingStatus = elevatorStates.Peers[myId].WorkingStatus // Keep the old working status, it should only be updated by the supervisor
+	}
 	elevatorStates.Peers[elevatorPeer.ID] = elevatorPeer
 }
 
@@ -43,18 +46,11 @@ func GenerateNewElevatorStates() ElevatorStates {
 	return elevatorStates
 }
 
-/*func UpdateAliveElevatorsMap(elevatorStates ElevatorStates, aliveElevatorsMap map[int]bool) {
-	for i := 0; i < N_ELEVATORS; i++ {
-		aliveElevatorsMap[elevatorStates.Peers[i].ID] = elevatorStates.Peers[i].Alive
-	}
-}*/ //Fjern senere
-
-func ThisElevatorToElevatorPeer(elevator Elevator, MyId int) ElevatorPeer {
+func ThisElevatorToElevatorPeer(elevator Elevator, myId int) ElevatorPeer {
 	return ElevatorPeer{
-		Floor:         elevator.Floor,
-		Direction:     elevator.Direction,
-		Behaviour:     elevator.Behaviour,
-		WorkingStatus: StatusOK,
-		ID:            MyId,
+		Floor:     elevator.Floor,
+		Direction: elevator.Direction,
+		Behaviour: elevator.Behaviour,
+		ID:        myId,
 	}
 }

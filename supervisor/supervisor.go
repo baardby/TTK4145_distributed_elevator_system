@@ -14,7 +14,7 @@ const (
 	SupervisorHardwareRecovered
 )
 
-type TimerEvent struct {
+type SupervisorEvent struct {
 	Type       SupervisorEventType
 	ElevatorID int
 }
@@ -46,9 +46,13 @@ func initSupervisor() supervisor {
 			{startTime: time.Now(), active: false},
 			{startTime: time.Now(), active: false},
 		},
-		movingTimer: movingTimer{startTime: time.Now(), active: false},
-		obstruction: false,
-		doorOpen:    false,
+		movingTimer:             movingTimer{startTime: time.Now(), active: false},
+		stuckDetected:           false,
+		recoveryFromMovingStuck: false,
+		obstruction:             false,
+		doorOpen:                false,
+
+		lastFloor: -1,
 	}
 }
 
@@ -114,12 +118,12 @@ func haveIRecovered(supervisor supervisor, elevator Elevator) bool {
 	return false
 }
 
-func Supervisor(peerAliveCh <-chan int, updateElevatorEvt <-chan Elevator, TimerEventChan chan<- TimerEvent) {
+func Supervisor(peerAliveCh <-chan int, updateElevatorEvt <-chan Elevator, SupervisorEventChan chan<- SupervisorEvent) {
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 
 	sup := initSupervisor()
-	// Lag løkke for å lage timers og holde styr på forskjellig stuff.
+
 	for {
 		select {
 		case peerAlive := <-peerAliveCh:
@@ -129,14 +133,14 @@ func Supervisor(peerAliveCh <-chan int, updateElevatorEvt <-chan Elevator, Timer
 				if haveIRecovered(sup, elevator) {
 					sup.stuckDetected = false
 					sup.recoveryFromMovingStuck = false
-					TimerEventChan <- TimerEvent{Type: SupervisorHardwareRecovered}
+					SupervisorEventChan <- SupervisorEvent{Type: SupervisorHardwareRecovered}
 				}
 			}
 			handleElevatorUpdate(&sup, elevator)
 
 		case <-ticker.C:
 			if id := sup.elevatorTimers.lostConnectionToElevator(); id != -1 {
-				TimerEventChan <- TimerEvent{
+				SupervisorEventChan <- SupervisorEvent{
 					Type:       TimerElevatorTimeout,
 					ElevatorID: id,
 				}
@@ -146,10 +150,10 @@ func Supervisor(peerAliveCh <-chan int, updateElevatorEvt <-chan Elevator, Timer
 				sup.recoveryFromMovingStuck = true
 				sup.movingTimer.active = false
 				sup.recoveryPrevFloor = sup.lastFloor
-				TimerEventChan <- TimerEvent{Type: SupervisorHardwareFault}
+				SupervisorEventChan <- SupervisorEvent{Type: SupervisorHardwareFault}
 			}
 			if amIObstructed(sup) && !sup.stuckDetected {
-				TimerEventChan <- TimerEvent{Type: SupervisorHardwareFault}
+				SupervisorEventChan <- SupervisorEvent{Type: SupervisorHardwareFault}
 				sup.stuckDetected = true
 			}
 		}

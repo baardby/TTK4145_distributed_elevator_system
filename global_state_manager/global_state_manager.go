@@ -10,49 +10,47 @@ import (
 	. "distributed_elevator/supervisor"
 )
 
-const MyId = 1 // !!! Må endres til å være IDen til den heisen som kjører denne instansen av global state manager
-
-func handleTimeEvent(timeEvent TimerEvent, globalElevatorStates *ElevatorStates, aliveElevatorsMap map[int]bool) {
-	switch timeEvent.Type {
+func handleSupervisorEvent(supervisorEvent SupervisorEvent, globalElevatorStates *ElevatorStates, myId int) {
+	switch supervisorEvent.Type {
 	case TimerElevatorTimeout:
-		globalElevatorStates.Peers[timeEvent.ElevatorID].Alive = false
-		UpdateAliveElevatorsMap(*globalElevatorStates, aliveElevatorsMap)
-	case TimerMovementStuck:
-		globalElevatorStates.Peers[MyId].Alive = false
-		UpdateAliveElevatorsMap(*globalElevatorStates, aliveElevatorsMap)
-		//handle movement stuck, update global queue and elevator states, and send messages if needed
-		//case TimerAcceptancetest --- IGNORE ---
+		globalElevatorStates.Peers[supervisorEvent.ElevatorID].WorkingStatus = StatusLostConnection
+	case SupervisorHardwareFault:
+		globalElevatorStates.Peers[myId].WorkingStatus = StatusHardwareFault
+	case SupervisorHardwareRecovered:
+		globalElevatorStates.Peers[myId].WorkingStatus = StatusOK
 	}
 }
 
-func handleRecievedMessage(recievedMessage Message, globalQueue *OrderQueue, globalElevatorStates *ElevatorStates) {
-	//handle network listener event
-	globalElevatorStates.UpdateElevatorState(recievedMessage.Peer)
-	//globalQueue.UpdateOrderQueue(recievedMessage.OrderQueue, recievedMessage.ID)
+func handleReceivedMessage(recievedMessage Message, globalQueue *OrderQueue, globalElevatorStates *ElevatorStates, myId int) {
+	globalElevatorStates.UpdatePeer(recievedMessage.Peer, myId)
+
+	//globalQueue.UpdateOrderQueue(otherQueue, recievedMessage.ID)
+	//globalQueue.TransitionHallOrders(myId, *globalElevatorStates)
+	//globalQueue.TransitionCabOrders()
 }
 
-func handleThisElevatorUpdate(thisElevatorUpdate Elevator, globalQueue *OrderQueue, globalElevatorStates *ElevatorStates, prevMyElevatorQueue *[N_FLOORS][N_BUTTONS]bool, aliveElevatorsMap map[int]bool) {
-	// kan det lages en funksjon for det under? Kanskje ligge i order queue?
+func handleThisElevatorUpdate(thisElevator Elevator, globalQueue *OrderQueue, globalElevatorStates *ElevatorStates, prevMyElevatorQueue *[N_FLOORS][N_BUTTONS]bool, myId int) {
 
 	for floor := 0; floor < N_FLOORS; floor++ {
 		for btn := 0; btn < N_BUTTONS; btn++ {
-			if (*prevMyElevatorQueue)[floor][btn] && thisElevatorUpdate.Requests[floor][btn] == false {
-				globalQueue.CompleteMyOrder(ButtonEvent{Floor: floor, Button: ButtonType(btn)}, aliveElevatorsMap, MyId)
+			if (*prevMyElevatorQueue)[floor][btn] && !thisElevator.Requests[floor][btn] {
+				globalQueue.CompleteMyOrder(ButtonEvent{Floor: floor, Button: ButtonType(btn)}, *globalElevatorStates, myId)
 			}
 		}
 	}
-	*prevMyElevatorQueue = thisElevatorUpdate.Requests
+	*prevMyElevatorQueue = thisElevator.Requests
 
-	globalElevatorStates.UpdateElevatorState(ThisElevatorToElevatorPeer(thisElevatorUpdate, MyId))
+	globalElevatorStates.UpdatePeer(ThisElevatorToElevatorPeer(thisElevator, myId), myId)
 }
 
-func handleButtonEvent(buttonEvent ButtonEvent, globalQueue *OrderQueue, globalElevatorStates ElevatorStates, aliveElevatorsMap map[int]bool) {
-	assignTo := AssignNewOrder(buttonEvent, globalElevatorStates, globalQueue.Cab, MyId)
-	globalQueue.AppendNewOrder(buttonEvent, MyId, aliveElevatorsMap, assignTo)
+func handleButtonEvent(buttonEvent ButtonEvent, globalQueue *OrderQueue, globalElevatorStates ElevatorStates, myId int) {
+	assignTo := AssignNewOrder(buttonEvent, globalElevatorStates, globalQueue.Cab[myId], myId)
+	globalQueue.AppendNewOrder(buttonEvent, myId, globalElevatorStates, assignTo)
 }
 
 func Global_State_Manager(
-	timerEventChan <-chan TimerEvent,
+	myId int,
+	supervisorEventChan <-chan SupervisorEvent,
 	recievedMessageChan <-chan Message,
 	thisElevatorUpdateChan <-chan Elevator,
 	buttonEventChan <-chan ButtonEvent,
@@ -65,31 +63,27 @@ func Global_State_Manager(
 	//init forskjellige ting
 	globalQueue := GenerateEmptyOrderQueue()
 	globalElevatorStates := GenerateNewElevatorStates()
-	aliveElevatorsMap := map[int]bool{1: false, 2: false, 3: false} //map for å holde styr på hvilke heiser som er alive, oppdateres i handleTimeEvent og handleRecievedMessage
-	aliveElevatorsMap[MyId] = true
-	prevMyElevatorQueue := [N_FLOORS][N_BUTTONS]bool{} //!!! egen init?
+	prevMyElevatorQueue := [N_FLOORS][N_BUTTONS]bool{}
 
 	for {
 		select {
-		case timerEvent := <-timerEventChan:
-			handleTimeEvent(timerEvent, &globalElevatorStates, aliveElevatorsMap)
-			updateElevatorStateEvent <- globalElevatorStates.Peers[MyId]
-
-			// !!! Må oppdatere aliveElevatorsMap her, fordi det er kun her de dør
+		case supervisorEvent := <-supervisorEventChan:
+			handleSupervisorEvent(supervisorEvent, &globalElevatorStates, myId)
+			updateElevatorStateEvent <- globalElevatorStates.Peers[myId]
 
 		case recievedMessage := <-recievedMessageChan:
-			handleRecievedMessage(recievedMessage, &globalQueue, &globalElevatorStates)
-			myOrderListChan <- globalQueue.RetrieveMyOrders(MyId)
+			handleReceivedMessage(recievedMessage, &globalQueue, &globalElevatorStates, myId)
+			myOrderListChan <- globalQueue.RetrieveMyOrders(myId)
 			updateOrderQueueEvent <- globalQueue
 
 		case thisElevatorUpdate := <-thisElevatorUpdateChan:
-			handleThisElevatorUpdate(thisElevatorUpdate, &globalQueue, &globalElevatorStates, &prevMyElevatorQueue, aliveElevatorsMap)
-			updateElevatorStateEvent <- globalElevatorStates.Peers[MyId]
+			handleThisElevatorUpdate(thisElevatorUpdate, &globalQueue, &globalElevatorStates, &prevMyElevatorQueue, myId)
+			updateElevatorStateEvent <- globalElevatorStates.Peers[myId]
 			updateOrderQueueEvent <- globalQueue
 
 		case buttonEvent := <-buttonEventChan:
-			handleButtonEvent(buttonEvent, &globalQueue, globalElevatorStates, aliveElevatorsMap)
-			myOrderListChan <- globalQueue.RetrieveMyOrders(MyId)
+			handleButtonEvent(buttonEvent, &globalQueue, globalElevatorStates, myId)
+			myOrderListChan <- globalQueue.RetrieveMyOrders(myId)
 			updateOrderQueueEvent <- globalQueue
 		}
 	}
