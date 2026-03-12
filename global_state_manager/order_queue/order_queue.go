@@ -253,31 +253,43 @@ func (myQueue *OrderQueue) CompleteMyOrder(btnEvent ButtonEvent, elevatorStates 
 	return true
 }
 
-// Assigner interface to gain access to AssignNewOrder behaviour, which is needed in RedistributeHallOrders
-type Assigner interface {
-	AssignNewOrder(ButtonEvent, ElevatorStates, AllCabOrders, int) int
-}
+func RedistributeHallOrders(myQueue *OrderQueue, myID int, elevatorStates ElevatorStates, assignNewOrder func(ButtonEvent, ElevatorStates, AllCabOrders, int) int) {
+	// myHallOrders := myQueue.Hall[myID]
+	// status := make(map[int]bool)
 
-func RedistributeHallOrders(myQueue *OrderQueue, myID int, elevatorStates ElevatorStates, assigner Assigner) {
+	// for _, elevatorPeer := range elevatorStates.Peers {
+	// 	if elevatorPeer.WorkingStatus == StatusOK {
+	// 		status[elevatorPeer.ID] = true
+	// 	} else {
+	// 		status[elevatorPeer.ID] = false
+	// 	}
+	// }
+	// for floor := 0; floor < N_FLOORS; floor++ {
+	// 	for btn := 0; btn < N_BUTTONS; btn++ {
+	// 		myHallOrder := myHallOrders[floor][btn]
+
+	// 		if status[myHallOrder.AssignedTo] { // If order's assigned elevator is working -> go to next order
+	// 			continue
+	// 		}
+	// 		buttonEvent := ButtonEvent{Floor: floor, Button: ButtonType(btn)}
+	// 		newID := assigner.AssignNewOrder(buttonEvent, elevatorStates, myQueue.Cab[myID], myID) // !!! Correct usage?
+	// 		myHallOrder.AssignedTo = newID
+	// 		myHallOrders[floor][btn] = myHallOrder
+	// 	}
+	// }
+	// myQueue.Hall[myID] = myHallOrders
+
 	myHallOrders := myQueue.Hall[myID]
-	status := make(map[int]bool)
 
-	for _, elevatorPeer := range elevatorStates.Peers {
-		if elevatorPeer.WorkingStatus == StatusOK {
-			status[elevatorPeer.ID] = true
-		} else {
-			status[elevatorPeer.ID] = false
-		}
-	}
 	for floor := 0; floor < N_FLOORS; floor++ {
 		for btn := 0; btn < N_BUTTONS; btn++ {
 			myHallOrder := myHallOrders[floor][btn]
 
-			if status[myHallOrder.AssignedTo] { // If order's assigned elevator is working -> go to next order
+			if elevatorStates.Peers[myHallOrder.AssignedTo].WorkingStatus == StatusOK { // If order's assigned elevator is working -> go to next order
 				continue
 			}
 			buttonEvent := ButtonEvent{Floor: floor, Button: ButtonType(btn)}
-			newID := assigner.AssignNewOrder(buttonEvent, elevatorStates, myQueue.Cab[myID], myID) // !!! Correct usage?
+			newID := assignNewOrder(buttonEvent, elevatorStates, myQueue.Cab[myID], myID)
 			myHallOrder.AssignedTo = newID
 			myHallOrders[floor][btn] = myHallOrder
 		}
