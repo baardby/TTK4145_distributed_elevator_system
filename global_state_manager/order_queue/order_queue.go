@@ -253,7 +253,7 @@ func (myQueue *OrderQueue) CompleteMyOrder(btnEvent ButtonEvent, elevatorStates 
 	return true
 }
 
-func RedistributeHallOrders(myQueue *OrderQueue, myID int, elevatorStates ElevatorStates, assignNewOrder func(ButtonEvent, ElevatorStates, AllCabOrders, int) int) {
+func (myQueue *OrderQueue) RedistributeHallOrders(myID int, elevatorStates ElevatorStates, assignNewOrder func(ButtonEvent, ElevatorStates, AllCabOrders, int) int) {
 	// myHallOrders := myQueue.Hall[myID]
 	// status := make(map[int]bool)
 
