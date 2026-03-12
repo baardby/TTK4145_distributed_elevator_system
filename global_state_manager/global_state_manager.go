@@ -14,8 +14,8 @@ func handleSupervisorEvent(supervisorEvent SupervisorEvent, globalQueue *OrderQu
 	switch supervisorEvent.Type {
 	case TimerElevatorTimeout:
 		globalElevatorStates.Peers[supervisorEvent.ElevatorID].WorkingStatus = StatusLostConnection
-		if lowestOkID(*globalElevatorStates) == myId {
-			globalQueue.Redistribute(*globalElevatorStates)
+		if lowestIDOnNetwork(*globalElevatorStates) == myId {
+			globalQueue.RedistributeHallOrders(myId, *globalElevatorStates, AssignNewOrder)
 		}
 	case SupervisorHardwareFault:
 		globalElevatorStates.Peers[myId].WorkingStatus = StatusHardwareFault
@@ -30,11 +30,11 @@ func handleReceivedMessage(receivedMessage Message, globalQueue *OrderQueue, glo
 	globalQueue.TransitionAllCabOrders(myId, *globalElevatorStates)
 
 	newPeer := receivedMessage.Peer
-	oldPeer := globalElevatorStates.Peers[newPeer.ID-1]
+	oldPeer := globalElevatorStates.Peers[newPeer.ID]
 	needRedistribute := fromOkToHardwareFault(newPeer, oldPeer)
 	globalElevatorStates.UpdatePeer(newPeer, myId)
-	if needRedistribute && lowestOkID(*globalElevatorStates) == myId {
-		globalQueue.Redistribute(*globalElevatorStates)
+	if needRedistribute && lowestIDOnNetwork(*globalElevatorStates) == myId {
+		globalQueue.RedistributeHallOrders(myId, *globalElevatorStates, AssignNewOrder)
 	}
 
 }
@@ -46,10 +46,10 @@ func fromOkToHardwareFault(newPeer ElevatorPeer, oldPeer ElevatorPeer) bool {
 	return false
 }
 
-func lowestOkID(globalElevatorStates ElevatorStates) int {
+func lowestIDOnNetwork(globalElevatorStates ElevatorStates) int {
 	for i := 0; i < N_ELEVATORS; i++ {
-		if globalElevatorStates.Peers[i].WorkingStatus == StatusOK {
-			return i + 1
+		if globalElevatorStates.Peers[i].WorkingStatus != StatusLostConnection {
+			return i
 		}
 	}
 	return -1 //return -1 if no elevator is StatusOK
@@ -87,7 +87,7 @@ func Global_State_Manager(
 	// !!! er der her man skal ha backupPhase() og listen for other queuepahse()?
 
 	//init forskjellige ting
-	globalQueue := GenerateEmptyOrderQueue()
+	globalQueue := GenerateNewOrderQueue()
 	globalElevatorStates := GenerateNewElevatorStates(myId)
 	prevMyElevatorQueue := [N_FLOORS][N_BUTTONS]bool{}
 
@@ -95,7 +95,7 @@ func Global_State_Manager(
 		select {
 		case supervisorEvent := <-supervisorEventChan:
 			handleSupervisorEvent(supervisorEvent, &globalQueue, &globalElevatorStates, myId)
-			updateElevatorStateEvent <- globalElevatorStates.Peers[myId-1]
+			updateElevatorStateEvent <- globalElevatorStates.Peers[myId]
 
 		case receivedMessage := <-receivedMessageChan:
 			handleReceivedMessage(receivedMessage, &globalQueue, &globalElevatorStates, myId)
@@ -104,7 +104,7 @@ func Global_State_Manager(
 
 		case thisElevatorUpdate := <-thisElevatorUpdateChan:
 			handleThisElevatorUpdate(thisElevatorUpdate, &globalQueue, &globalElevatorStates, &prevMyElevatorQueue, myId)
-			updateElevatorStateEvent <- globalElevatorStates.Peers[myId-1]
+			updateElevatorStateEvent <- globalElevatorStates.Peers[myId]
 			updateOrderQueueEvent <- globalQueue
 
 		case buttonEvent := <-buttonEventChan:

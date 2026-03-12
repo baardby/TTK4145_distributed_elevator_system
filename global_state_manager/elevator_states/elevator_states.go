@@ -27,9 +27,9 @@ type ElevatorStates struct {
 
 func (elevatorStates *ElevatorStates) UpdatePeer(elevatorPeer ElevatorPeer, myId int) {
 	if elevatorPeer.ID == myId {
-		elevatorPeer.WorkingStatus = elevatorStates.Peers[myId-1].WorkingStatus // Keep the old working status for myself, it should only be updated by the supervisor
+		elevatorPeer.WorkingStatus = elevatorStates.Peers[myId].WorkingStatus // Keep the old working status for myself, it should only be updated by the supervisor
 	}
-	elevatorStates.Peers[elevatorPeer.ID-1] = elevatorPeer
+	elevatorStates.Peers[elevatorPeer.ID] = elevatorPeer
 }
 
 func GenerateNewElevatorStates(myId int) ElevatorStates {
@@ -40,10 +40,10 @@ func GenerateNewElevatorStates(myId int) ElevatorStates {
 			Direction:     MD_Stop,
 			Behaviour:     EB_Idle,
 			WorkingStatus: StatusLostConnection,
-			ID:            i + 1,
+			ID:            i,
 		}
 	}
-	elevatorStates.Peers[myId-1].WorkingStatus = StatusOK
+	elevatorStates.Peers[myId].WorkingStatus = StatusOK
 	return elevatorStates
 }
 
