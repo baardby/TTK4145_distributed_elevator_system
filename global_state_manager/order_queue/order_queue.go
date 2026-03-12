@@ -284,6 +284,9 @@ func (myQueue *OrderQueue) RedistributeHallOrders(myID int, elevatorStates Eleva
 		for btn := 0; btn < N_BUTTONS; btn++ {
 			myHallOrder := myHallOrders[floor][btn]
 
+			if myHallOrder.AssignedTo == noElevatorAssigned {
+				continue
+			}
 			if elevatorStates.Peers[myHallOrder.AssignedTo].WorkingStatus == StatusOK { // If order's assigned elevator is working -> go to next order
 				continue
 			}
