@@ -15,7 +15,6 @@ import (
 const (
 	noElevatorAssigned  = 0
 	hallButtonsPerFloor = 2
-	numOfOrderStates    = 4 // !!! Needed?
 )
 
 type OrderState int
