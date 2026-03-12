@@ -28,14 +28,17 @@ type elevatorTimers [N_ELEVATORS]timer
 
 type movingTimer timer
 
+type obstructionTimer timer
+
 type supervisor struct {
 	elevatorTimers          elevatorTimers
 	movingTimer             movingTimer
+	obstructionTimer        obstructionTimer
 	stuckDetected           bool
 	recoveryFromMovingStuck bool
 	recoveryPrevFloor       int
 	lastFloor               int
-	obstruction             bool
+	obstructed              bool
 	doorOpen                bool
 }
 
@@ -47,12 +50,10 @@ func initSupervisor() supervisor {
 			{startTime: time.Now(), active: false},
 		},
 		movingTimer:             movingTimer{startTime: time.Now(), active: false},
+		obstructionTimer:        obstructionTimer{startTime: time.Now(), active: false},
 		stuckDetected:           false,
 		recoveryFromMovingStuck: false,
-		obstruction:             false,
-		doorOpen:                false,
-
-		lastFloor: -1,
+		lastFloor:               -1,
 	}
 }
 
@@ -74,8 +75,11 @@ func amIStuck(supervisor supervisor) bool {
 	return false
 }
 
-func amIObstructed(supervisor supervisor) bool {
-	return supervisor.obstruction && supervisor.doorOpen
+func obstructionTimedOut(supervisor supervisor) bool {
+	if supervisor.obstructionTimer.active && time.Since(supervisor.obstructionTimer.startTime) > 8*time.Second {
+		return true
+	}
+	return false
 }
 
 func updateElevatorTimer(elevatorTimers *elevatorTimers, elevatorID int) {
@@ -97,12 +101,20 @@ func updateMovingTimer(supervisor *supervisor, elevator Elevator) {
 	}
 }
 
+func updateObstructionTimer(supervisor *supervisor, elevator Elevator) {
+	if elevator.Obstruction && elevator.Behaviour == EB_DoorOpen {
+		if !supervisor.obstructionTimer.active {
+			supervisor.obstructionTimer.active = true
+			supervisor.obstructionTimer.startTime = time.Now()
+		}
+	} else {
+		supervisor.obstructionTimer.active = false
+	}
+}
+
 func handleElevatorUpdate(supervisor *supervisor, elevator Elevator) {
 	updateMovingTimer(supervisor, elevator)
-
-	supervisor.obstruction = elevator.Obstruction
-	supervisor.doorOpen = (elevator.Behaviour == EB_DoorOpen)
-	supervisor.lastFloor = elevator.Floor
+	updateObstructionTimer(supervisor, elevator)
 }
 
 func haveIRecovered(supervisor supervisor, elevator Elevator) bool {
@@ -156,9 +168,11 @@ func Supervisor(
 				sup.recoveryPrevFloor = sup.lastFloor
 				SupervisorEventChan <- SupervisorEvent{Type: SupervisorHardwareFault}
 			}
-			if amIObstructed(sup) && !sup.stuckDetected {
-				SupervisorEventChan <- SupervisorEvent{Type: SupervisorHardwareFault}
+			if obstructionTimedOut(sup) && !sup.stuckDetected {
 				sup.stuckDetected = true
+				sup.recoveryFromMovingStuck = false
+				sup.obstructionTimer.active = false
+				SupervisorEventChan <- SupervisorEvent{Type: SupervisorHardwareFault}
 			}
 		}
 	}
