@@ -4,7 +4,6 @@ import (
 	. "distributed_elevator/elevio"
 	. "distributed_elevator/global_state_manager/elevator_states"
 	"fmt"
-	"slices"
 )
 
 // !!! Should we drop GetOrder functions
@@ -254,25 +253,36 @@ func (myQueue *OrderQueue) CompleteMyOrder(btnEvent ButtonEvent, elevatorStates 
 	return true
 }
 
-// !!! This should be done for all elevators, not just lowest ID
-func (queue *OrderQueue) RedistributeHallOrders(myID int, elevatorStates ElevatorStates, alive []int) {
-	myHallOrders := queue.Hall[myID]
+// Assigner interface to gain access to AssignNewOrder behaviour, which is needed in RedistributeHallOrders
+type Assigner interface {
+	AssignNewOrder(ButtonEvent, ElevatorStates, AllCabOrders, int) int
+}
 
+func RedistributeHallOrders(myQueue *OrderQueue, myID int, elevatorStates ElevatorStates, assigner Assigner) {
+	myHallOrders := myQueue.Hall[myID]
+	status := make(map[int]bool)
+
+	for _, elevatorPeer := range elevatorStates.Peers {
+		if elevatorPeer.WorkingStatus == StatusOK {
+			status[elevatorPeer.ID] = true
+		} else {
+			status[elevatorPeer.ID] = false
+		}
+	}
 	for floor := 0; floor < N_FLOORS; floor++ {
 		for btn := 0; btn < N_BUTTONS; btn++ {
 			myHallOrder := myHallOrders[floor][btn]
 
-			if alive[myHallOrder.AssignedTo] { // If order's assigned elevator is working -> go to next order
+			if status[myHallOrder.AssignedTo] { // If order's assigned elevator is working -> go to next order
 				continue
 			}
-			if myID <= slices.Min(alive) { // If myID is the lowest ID -> reassign order
-				newID := chooseBestElevator(order, elevators, alive) // !!! Correct usage?
-				myHallOrder.AssignedTo = newID
-			}
+			buttonEvent := ButtonEvent{Floor: floor, Button: ButtonType(btn)}
+			newID := assigner.AssignNewOrder(buttonEvent, elevatorStates, myQueue.Cab[myID], myID) // !!! Correct usage?
+			myHallOrder.AssignedTo = newID
 			myHallOrders[floor][btn] = myHallOrder
 		}
 	}
-	queue.Hall[myID] = myHallOrders
+	myQueue.Hall[myID] = myHallOrders
 }
 
 func (myQueue *OrderQueue) TransitionSingleHallOrder(
