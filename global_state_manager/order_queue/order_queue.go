@@ -85,13 +85,17 @@ func (myQueue *OrderQueue) RetrieveMyOrders(myID int) [N_FLOORS][N_BUTTONS]bool 
 	var orders [N_FLOORS][N_BUTTONS]bool
 	for floor := 0; floor < N_FLOORS; floor++ {
 		for btn := 0; btn < N_BUTTONS; btn++ {
-			hallOrder := GetHallOrder(myQueue, myID, floor, btn)
-			if hallOrder.AssignedTo == myID && hallOrder.State == Confirmed {
-				orders[floor][btn] = true
+			switch btn {
+			case 0, 1:
+				hallOrder := GetHallOrder(myQueue, myID, floor, btn)
+				if hallOrder.AssignedTo == myID && hallOrder.State == Confirmed {
+					orders[floor][btn] = true
+				}
+			case 2:
+				if GetCabOrder(myQueue, myID, floor, myID) == Confirmed {
+					orders[floor][myID] = true
+				}
 			}
-		}
-		if GetCabOrder(myQueue, myID, floor, myID) == Confirmed {
-			orders[floor][myID] = true
 		}
 	}
 	return orders
@@ -293,7 +297,7 @@ func (myQueue *OrderQueue) TransitionSingleHallOrder(
 			}
 			otherHallOrder = GetHallOrder(myQueue, elevatorID, floor, btn)
 			switch otherHallOrder.State {
-			case None, Unconfirmed:	// Double check
+			case None, Unconfirmed: // Double check
 				return
 			case Completed:
 				hallOrders[floor][btn].State = Completed

@@ -118,7 +118,11 @@ func haveIRecovered(supervisor supervisor, elevator Elevator) bool {
 	return false
 }
 
-func Supervisor(peerAliveCh <-chan int, updateElevatorEvt <-chan Elevator, SupervisorEventChan chan<- SupervisorEvent) {
+func Supervisor(
+	peerAliveCh <-chan int,
+	updateElevatorEvt <-chan Elevator,
+	SupervisorEventChan chan<- SupervisorEvent) {
+
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 
