@@ -119,7 +119,7 @@ func (myQueue *OrderQueue) RetrieveMyOrders(myID int) [N_FLOORS][N_BUTTONS]bool 
 				}
 			case BT_Cab:
 				if GetCabOrder(myQueue, myID, floor, myID) == Confirmed {
-					orders[floor][myID] = true
+					orders[floor][btn] = true
 				}
 			}
 		}
