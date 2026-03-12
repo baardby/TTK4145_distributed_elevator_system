@@ -20,7 +20,7 @@ func main() {
 	idFlag := flag.Int("id", -1, "elevator ID (1..N_ELEVATORS)")
 	flag.Parse()
 
-	if *idFlag < 1 || *idFlag > N_ELEVATORS {
+	if *idFlag < 0 || *idFlag > N_ELEVATORS-1 {
 		fmt.Fprintf(os.Stderr, "error: --id must be in range 0..%d\n", N_ELEVATORS)
 		os.Exit(2)
 	}
