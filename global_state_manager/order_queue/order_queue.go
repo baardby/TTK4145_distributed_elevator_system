@@ -4,6 +4,7 @@ import (
 	. "distributed_elevator/elevio"
 	. "distributed_elevator/global_state_manager/elevator_states"
 	"fmt"
+	"slices"
 )
 
 // !!! Should we drop GetOrder functions
@@ -42,12 +43,12 @@ type OrderQueue struct {
 	Cab  map[int]AllCabOrders  // elevatorID -> that elevator's view of cab orders
 }
 
-func GenerateEmptyOrderQueue() OrderQueue {
-	return OrderQueue{
-		Hall: make(map[int]AllHallOrders),
-		Cab:  make(map[int]AllCabOrders),
-	}
-}
+// func GenerateEmptyOrderQueue() OrderQueue {
+// 	return OrderQueue{
+// 		Hall: make(map[int]AllHallOrders),
+// 		Cab:  make(map[int]AllCabOrders),
+// 	}
+// }
 
 func IsElevatorInQueue(queue *OrderQueue, viewerID int) bool {
 	_, inHall := queue.Hall[viewerID]
@@ -56,21 +57,48 @@ func IsElevatorInQueue(queue *OrderQueue, viewerID int) bool {
 }
 
 // Function must be called with any elevator that is added to the system, before it can be assigned orders
-func AddElevatorToQueue(queue *OrderQueue, viewerID int) {
-	if !IsElevatorInQueue(queue, viewerID) {
-		queue.Hall[viewerID] = AllHallOrders{
-			{{State: None, AssignedTo: noElevatorAssigned}, {State: None, AssignedTo: noElevatorAssigned}},
-			{{State: None, AssignedTo: noElevatorAssigned}, {State: None, AssignedTo: noElevatorAssigned}},
-			{{State: None, AssignedTo: noElevatorAssigned}, {State: None, AssignedTo: noElevatorAssigned}},
-			{{State: None, AssignedTo: noElevatorAssigned}, {State: None, AssignedTo: noElevatorAssigned}},
-		}
-		queue.Cab[viewerID] = AllCabOrders{
-			{None, None, None},
-			{None, None, None},
-			{None, None, None},
-			{None, None, None},
-		}
+// func AddElevatorToQueue(queue *OrderQueue, viewerID int) {
+// 	if !IsElevatorInQueue(queue, viewerID) {
+// 		queue.Hall[viewerID] = AllHallOrders{
+// 			{{State: None, AssignedTo: noElevatorAssigned}, {State: None, AssignedTo: noElevatorAssigned}},
+// 			{{State: None, AssignedTo: noElevatorAssigned}, {State: None, AssignedTo: noElevatorAssigned}},
+// 			{{State: None, AssignedTo: noElevatorAssigned}, {State: None, AssignedTo: noElevatorAssigned}},
+// 			{{State: None, AssignedTo: noElevatorAssigned}, {State: None, AssignedTo: noElevatorAssigned}},
+// 		}
+// 		queue.Cab[viewerID] = AllCabOrders{
+// 			{None, None, None},
+// 			{None, None, None},
+// 			{None, None, None},
+// 			{None, None, None},
+// 		}
+// 	}
+// }
+
+func GenerateNewOrderQueue() OrderQueue {
+	queue := OrderQueue{
+		Hall: make(map[int]AllHallOrders),
+		Cab:  make(map[int]AllCabOrders),
 	}
+
+	for viewerID := 0; viewerID < N_ELEVATORS; viewerID++ {
+		var hallOrders AllHallOrders
+		var cabOrders AllCabOrders
+		for floor := 0; floor < N_FLOORS; floor++ {
+			for btn := 0; btn < hallButtonsPerFloor; btn++ {
+				hallOrders[floor][btn] = HallOrder{
+					State:      None,
+					AssignedTo: noElevatorAssigned,
+				}
+			}
+			for elevatorID := 0; elevatorID < N_ELEVATORS; elevatorID++ {
+				cabOrders[floor][elevatorID] = None
+			}
+		}
+		queue.Hall[viewerID] = hallOrders
+		queue.Cab[viewerID] = cabOrders
+	}
+
+	return queue
 }
 
 func GetHallOrder(queue *OrderQueue, viewerID int, floor int, btn int) HallOrder {
@@ -85,13 +113,13 @@ func (myQueue *OrderQueue) RetrieveMyOrders(myID int) [N_FLOORS][N_BUTTONS]bool 
 	var orders [N_FLOORS][N_BUTTONS]bool
 	for floor := 0; floor < N_FLOORS; floor++ {
 		for btn := 0; btn < N_BUTTONS; btn++ {
-			switch btn {
-			case 0, 1:
+			switch ButtonType(btn) {
+			case BT_HallDown, BT_HallUp:
 				hallOrder := GetHallOrder(myQueue, myID, floor, btn)
 				if hallOrder.AssignedTo == myID && hallOrder.State == Confirmed {
 					orders[floor][btn] = true
 				}
-			case 2:
+			case BT_Cab:
 				if GetCabOrder(myQueue, myID, floor, myID) == Confirmed {
 					orders[floor][myID] = true
 				}
@@ -125,11 +153,6 @@ func IsOrderInProgress(
 			continue
 		}
 		elevatorID := elevatorPeer.ID
-
-		// for elevatorID, alive := range aliveElevators {
-		// 	if !alive {
-		// 		continue
-		// 	}
 		if btnEv.Button != BT_Cab {
 			order := GetHallOrder(queue, elevatorID, floor, btn)
 			if order.State == Unconfirmed || order.State == Confirmed {
@@ -183,7 +206,6 @@ func (queue *OrderQueue) AppendNewOrder(btnEv ButtonEvent, myID int, elevatorSta
 func (myQueue *OrderQueue) CompleteMyOrder(btnEvent ButtonEvent, elevatorStates ElevatorStates, myID int) bool {
 	floor := btnEvent.Floor
 	btn := int(btnEvent.Button)
-
 	if floor < 0 || floor >= N_FLOORS {
 		fmt.Println("Attempted to complete order at invalid floor: ", floor)
 		return false
@@ -192,7 +214,6 @@ func (myQueue *OrderQueue) CompleteMyOrder(btnEvent ButtonEvent, elevatorStates 
 		fmt.Println("Attempted to complete an order for non-working elevator.")
 		return false
 	}
-
 	switch btnEvent.Button {
 	case BT_Cab:
 		for _, elevatorPeer := range elevatorStates.Peers {
@@ -206,7 +227,6 @@ func (myQueue *OrderQueue) CompleteMyOrder(btnEvent ButtonEvent, elevatorStates 
 			}
 		}
 		cabOrders := myQueue.Cab[myID]
-
 		cabOrders[floor][myID] = Completed
 		myQueue.Cab[myID] = cabOrders
 	default:
@@ -221,12 +241,10 @@ func (myQueue *OrderQueue) CompleteMyOrder(btnEvent ButtonEvent, elevatorStates 
 			}
 		}
 		hallOrders := myQueue.Hall[myID]
-
 		if hallOrders[floor][btn].AssignedTo != myID {
 			fmt.Println("Attempted to mark order completed by wrong elevator. Order assigned to: ", hallOrders[floor][btn].AssignedTo, ", myID: ", myID)
 			return false
 		}
-
 		hallOrders[floor][btn] = HallOrder{
 			State:      Completed,
 			AssignedTo: noElevatorAssigned,
@@ -234,6 +252,27 @@ func (myQueue *OrderQueue) CompleteMyOrder(btnEvent ButtonEvent, elevatorStates 
 		myQueue.Hall[myID] = hallOrders
 	}
 	return true
+}
+
+// !!! This should be done for all elevators, not just lowest ID
+func (queue *OrderQueue) RedistributeHallOrders(myID int, elevatorStates ElevatorStates, alive []int) {
+	myHallOrders := queue.Hall[myID]
+
+	for floor := 0; floor < N_FLOORS; floor++ {
+		for btn := 0; btn < N_BUTTONS; btn++ {
+			myHallOrder := myHallOrders[floor][btn]
+
+			if alive[myHallOrder.AssignedTo] { // If order's assigned elevator is working -> go to next order
+				continue
+			}
+			if myID <= slices.Min(alive) { // If myID is the lowest ID -> reassign order
+				newID := chooseBestElevator(order, elevators, alive) // !!! Correct usage?
+				myHallOrder.AssignedTo = newID
+			}
+			myHallOrders[floor][btn] = myHallOrder
+		}
+	}
+	queue.Hall[myID] = myHallOrders
 }
 
 func (myQueue *OrderQueue) TransitionSingleHallOrder(
@@ -278,15 +317,15 @@ func (myQueue *OrderQueue) TransitionSingleHallOrder(
 				myQueue.Hall[myID] = *hallOrders // Ensuring we keep the lowest assignedTo ID even in transition failure
 				return
 			}
-
-			if otherHallOrder.AssignedTo < expectedAssignedTo && otherHallOrder.AssignedTo > noElevatorAssigned {
+			shouldISwitchAssigned := (otherHallOrder.AssignedTo != expectedAssignedTo && otherHallOrder.AssignedTo > noElevatorAssigned && elevatorID < myID)
+			if shouldISwitchAssigned {
 				expectedAssignedTo = otherHallOrder.AssignedTo
 			}
 		}
-
 		hallOrders[floor][btn].State = Confirmed
 		hallOrders[floor][btn].AssignedTo = expectedAssignedTo
 		myQueue.Hall[myID] = *hallOrders
+		// SetButtonLamp(ButtonType(btn), floor, true)	// !!! Ensure this works correctly
 		return
 
 	case Confirmed:
@@ -302,6 +341,11 @@ func (myQueue *OrderQueue) TransitionSingleHallOrder(
 			case Completed:
 				hallOrders[floor][btn].State = Completed
 				hallOrders[floor][btn].AssignedTo = noElevatorAssigned
+				// SetButtonLamp(ButtonType(btn), floor, false)	// !!! Ensure this works correctly
+			}
+			shouldISwitchAssigned := (otherHallOrder.AssignedTo != expectedAssignedTo && otherHallOrder.AssignedTo > noElevatorAssigned && elevatorID < myID)
+			if shouldISwitchAssigned {
+				expectedAssignedTo = otherHallOrder.AssignedTo
 			}
 			// if otherHallOrder.State == None || otherHallOrder.State == Unconfirmed { // Must double check this
 			// 	return
@@ -415,11 +459,6 @@ func (myQueue *OrderQueue) TransitionSingleCabOrder(
 			case Completed:
 				cabOrders[floor][assignedElevatorID] = Completed
 			}
-			// if otherCabOrder == None || otherCabOrder == Unconfirmed { // Must double check this
-			// 	return
-			// } else if otherCabOrder == Completed {
-			// 	cabOrders[floor][assignedElevatorID] = Completed
-			// }
 		}
 		myQueue.Cab[myID] = *cabOrders
 		return
@@ -431,10 +470,6 @@ func (myQueue *OrderQueue) TransitionSingleCabOrder(
 			if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection {
 				continue
 			}
-			// for ID, alive := range aliveElevators {
-			// 	if !alive || ID == myID {
-			// 		continue
-			// 	}
 			amIAlone = false
 			otherCabOrder = GetCabOrder(myQueue, elevatorID, floor, assignedElevatorID)
 			if otherCabOrder == Confirmed {
