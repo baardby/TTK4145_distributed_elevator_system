@@ -25,14 +25,14 @@ func handleSupervisorEvent(supervisorEvent SupervisorEvent, globalQueue *OrderQu
 }
 
 func handleReceivedMessage(receivedMessage Message, globalQueue *OrderQueue, globalElevatorStates *ElevatorStates, myId int) {
+	newPeer := receivedMessage.Peer
+	oldPeer := globalElevatorStates.Peers[newPeer.ID]
+	globalElevatorStates.UpdatePeer(newPeer, myId)
 	globalQueue.UpdateOrderQueue(receivedMessage.HallOrders, receivedMessage.CabOrders, receivedMessage.ID)
 	globalQueue.TransitionAllHallOrders(myId, *globalElevatorStates)
 	globalQueue.TransitionAllCabOrders(myId, *globalElevatorStates)
 
-	newPeer := receivedMessage.Peer
-	oldPeer := globalElevatorStates.Peers[newPeer.ID]
 	needRedistribute := fromOkToHardwareFault(newPeer, oldPeer)
-	globalElevatorStates.UpdatePeer(newPeer, myId)
 	if needRedistribute && lowestIDOnNetwork(*globalElevatorStates) == myId {
 		globalQueue.RedistributeHallOrders(myId, *globalElevatorStates, AssignNewOrder)
 	}
