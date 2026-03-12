@@ -32,7 +32,7 @@ func (elevatorStates *ElevatorStates) UpdatePeer(elevatorPeer ElevatorPeer, myId
 	elevatorStates.Peers[elevatorPeer.ID-1] = elevatorPeer
 }
 
-func GenerateNewElevatorStates() ElevatorStates {
+func GenerateNewElevatorStates(myId int) ElevatorStates {
 	var elevatorStates ElevatorStates
 	for i := 0; i < N_ELEVATORS; i++ {
 		elevatorStates.Peers[i] = ElevatorPeer{
@@ -43,6 +43,7 @@ func GenerateNewElevatorStates() ElevatorStates {
 			ID:            i + 1,
 		}
 	}
+	elevatorStates.Peers[myId-1].WorkingStatus = StatusOK
 	return elevatorStates
 }
 

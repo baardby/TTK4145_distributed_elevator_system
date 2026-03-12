@@ -21,12 +21,14 @@ func handleSupervisorEvent(supervisorEvent SupervisorEvent, globalElevatorStates
 	}
 }
 
-func handleReceivedMessage(recievedMessage Message, globalQueue *OrderQueue, globalElevatorStates *ElevatorStates, myId int) {
-	globalElevatorStates.UpdatePeer(recievedMessage.Peer, myId)
+func handleReceivedMessage(receivedMessage Message, globalQueue *OrderQueue, globalElevatorStates *ElevatorStates, myId int) {
+	globalElevatorStates.UpdatePeer(receivedMessage.Peer, myId)
 
-	//globalQueue.UpdateOrderQueue(otherQueue, recievedMessage.ID)
-	//globalQueue.TransitionHallOrders(myId, *globalElevatorStates)
-	//globalQueue.TransitionCabOrders()
+	AddElevatorToQueue(globalQueue, receivedMessage.ID)
+
+	globalQueue.UpdateOrderQueue(receivedMessage.HallOrders, receivedMessage.CabOrders, receivedMessage.ID)
+	globalQueue.TransitionAllHallOrders(myId, *globalElevatorStates)
+	globalQueue.TransitionAllCabOrders(myId, *globalElevatorStates)
 }
 
 func handleThisElevatorUpdate(thisElevator Elevator, globalQueue *OrderQueue, globalElevatorStates *ElevatorStates, prevMyElevatorQueue *[N_FLOORS][N_BUTTONS]bool, myId int) {
@@ -62,14 +64,14 @@ func Global_State_Manager(
 
 	//init forskjellige ting
 	globalQueue := GenerateEmptyOrderQueue()
-	globalElevatorStates := GenerateNewElevatorStates()
+	globalElevatorStates := GenerateNewElevatorStates(myId)
 	prevMyElevatorQueue := [N_FLOORS][N_BUTTONS]bool{}
 
 	for {
 		select {
 		case supervisorEvent := <-supervisorEventChan:
 			handleSupervisorEvent(supervisorEvent, &globalElevatorStates, myId)
-			updateElevatorStateEvent <- globalElevatorStates.Peers[myId]
+			updateElevatorStateEvent <- globalElevatorStates.Peers[myId-1]
 
 		case recievedMessage := <-recievedMessageChan:
 			handleReceivedMessage(recievedMessage, &globalQueue, &globalElevatorStates, myId)
@@ -78,7 +80,7 @@ func Global_State_Manager(
 
 		case thisElevatorUpdate := <-thisElevatorUpdateChan:
 			handleThisElevatorUpdate(thisElevatorUpdate, &globalQueue, &globalElevatorStates, &prevMyElevatorQueue, myId)
-			updateElevatorStateEvent <- globalElevatorStates.Peers[myId]
+			updateElevatorStateEvent <- globalElevatorStates.Peers[myId-1]
 			updateOrderQueueEvent <- globalQueue
 
 		case buttonEvent := <-buttonEventChan:

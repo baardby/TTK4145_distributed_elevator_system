@@ -14,9 +14,6 @@ func Elevalgo_ElevatorControllerLoop(updateQueueEvent <-chan [N_FLOORS][N_BUTTON
 
 	var elevator Elevator = Elevator_Uninitialized()
 
-	updateElevatorTicker := time.NewTicker(100 * time.Millisecond) // CHANGE TO CORRECT TIME 50Hz?
-	defer updateElevatorTicker.Stop()
-
 	select { // TODO: Test this with the physical elevator
 	// If a new floor can be received, the elevator is not between floors. Do nothing
 	case startFloor := <-newFloorEvent:
@@ -25,10 +22,13 @@ func Elevalgo_ElevatorControllerLoop(updateQueueEvent <-chan [N_FLOORS][N_BUTTON
 	// If a new floor can't be received, the elevator is between floors. Go down
 	default:
 		Fsm_OnInitBetweenFloors(&elevator) // TODO: Press a button when starting between floors. request_here() will probably make this fail and crash
-		// Possible solution: Refuse to service orders until inbetween floors using the newFloorChannel to block.
-		// startFloor := <-newFloorEvent
-		// Fsm_OnFloorArrival(&elevator, startFloor)
+		// Possible solution: Refuse to service orders until the elevator receives a new floor using the newFloorChannel to block.
+		startFloor := <-newFloorEvent
+		Fsm_OnFloorArrival(&elevator, startFloor)
 	}
+
+	updateElevatorTicker := time.NewTicker(1000 * time.Millisecond) // TODO: CHANGE TO 10Hz?
+	defer updateElevatorTicker.Stop()
 
 	for {
 		select {
@@ -44,8 +44,8 @@ func Elevalgo_ElevatorControllerLoop(updateQueueEvent <-chan [N_FLOORS][N_BUTTON
 			// Set lights accordingly to this new queue
 		case newFloor := <-newFloorEvent:
 			Fsm_OnFloorArrival(&elevator, newFloor)
-		case newButton := <-buttonPressEvent:
-			Fsm_OnRequestButtonPress(&elevator, newButton.Floor, newButton.Button)
+		//case newButton := <-buttonPressEvent:
+		//	Fsm_OnRequestButtonPress(&elevator, newButton.Floor, newButton.Button)
 		case stopButtonState := <-stopEvent:
 			SetStopLamp(stopButtonState) // CAN REMOVE
 		case currentObstrState := <-obstrEvent:

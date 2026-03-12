@@ -480,7 +480,7 @@ func TestOrderQueue() {
 	AddElevatorToQueue(&viewOfQueue, yourId)
 	AddElevatorToQueue(&viewOfQueue, hisId)
 
-	elevatorStates := GenerateNewElevatorStates()
+	elevatorStates := GenerateNewElevatorStates(myId)
 	elevatorStates.Peers[myId-1].WorkingStatus = StatusOK
 	elevatorStates.Peers[myId-1].ID = myId
 	elevatorStates.Peers[myId-1].Floor = 0

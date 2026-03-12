@@ -94,17 +94,17 @@ func Network_ListenerLoop(myID int,
 
 		// Filters out messages which doesn't follow the correct format of the network and messages broadcasted to ourselves
 		if (deconstructErr == nil) && (recvMsg.NetworkCode == NETWORK_CODE) && (recvMsg.ID != myID) {
-			//testPrintRecvMsg(&recvMsg) // FOR TESTING
+			testPrintRecvMsg(&recvMsg) // FOR TESTING
 
 			// Adding a new peer to the list MIGHT REMOVE
 			_, isInPeerList := listener.ListOfPeers[recvAddr.IP.String()]
 			if !isInPeerList {
 				listener.ListOfPeers[recvAddr.IP.String()] = recvMsg.ID
 			}
-			//listener.testPrintPeerList() // FOR TESTING
+			listener.testPrintPeerList() // FOR TESTING
 
 			// Notify Supervisor of new msg from peer
-			receivedFromPeerEvent <- recvMsg.ID
+			//receivedFromPeerEvent <- recvMsg.ID
 
 			// Send message to global state manager
 			receivedMessageEvent <- recvMsg
