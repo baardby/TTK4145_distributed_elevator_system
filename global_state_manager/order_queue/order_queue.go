@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-// !!! Should we drop GetOrder functions
+// !!! Should we drop GetOrder functions? Use more often?
 
 // !!! Variable and function names can be improved
 
@@ -15,7 +15,6 @@ import (
 const (
 	noElevatorAssigned  = 0
 	hallButtonsPerFloor = 2
-	numOfOrderStates    = 4 // !!! Needed?
 )
 
 type OrderState int
@@ -184,7 +183,7 @@ func (queue *OrderQueue) AppendNewOrder(btnEv ButtonEvent, myID int, elevatorSta
 	switch btnEv.Button {
 	case BT_Cab:
 		cabOrders := queue.Cab[myID]
-		cabOrders[floor][assignTo] = Unconfirmed // AssignTo should always be myID for cab orders
+		cabOrders[floor][assignTo] = Unconfirmed // assignTo should always be myID for cab orders
 		queue.Cab[myID] = cabOrders
 	default:
 		if assignTo < 0 || assignTo >= N_ELEVATORS {
@@ -334,6 +333,7 @@ func (myQueue *OrderQueue) TransitionSingleHallOrder(
 			if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection {
 				continue
 			}
+
 			otherHallOrder = GetHallOrder(myQueue, elevatorID, floor, btn)
 			if otherHallOrder.State == None || otherHallOrder.State == Completed {
 				myQueue.Hall[myID] = *hallOrders // Ensuring we keep the lowest assignedTo ID even in transition failure
@@ -356,6 +356,7 @@ func (myQueue *OrderQueue) TransitionSingleHallOrder(
 			if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection {
 				continue
 			}
+
 			otherHallOrder = GetHallOrder(myQueue, elevatorID, floor, btn)
 			switch otherHallOrder.State {
 			case None, Unconfirmed: // Double check
@@ -365,6 +366,7 @@ func (myQueue *OrderQueue) TransitionSingleHallOrder(
 				hallOrders[floor][btn].AssignedTo = noElevatorAssigned
 				// SetButtonLamp(ButtonType(btn), floor, false)	// !!! Ensure this works correctly
 			}
+
 			shouldISwitchAssigned := (otherHallOrder.AssignedTo != expectedAssignedTo && otherHallOrder.AssignedTo > noElevatorAssigned && elevatorID < myID)
 			if shouldISwitchAssigned {
 				expectedAssignedTo = otherHallOrder.AssignedTo
@@ -387,6 +389,7 @@ func (myQueue *OrderQueue) TransitionSingleHallOrder(
 			if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection {
 				continue
 			}
+
 			amIAlone = false
 			otherHallOrder = GetHallOrder(myQueue, elevatorID, floor, btn)
 			if otherHallOrder.State == Confirmed {
@@ -413,10 +416,7 @@ func (myQueue *OrderQueue) TransitionSingleHallOrder(
 	}
 }
 
-func (myQueue *OrderQueue) TransitionAllHallOrders(
-	myID int,
-	elevatorStates ElevatorStates,
-) {
+func (myQueue *OrderQueue) TransitionAllHallOrders(myID int, elevatorStates ElevatorStates) {
 	hallOrders := myQueue.Hall[myID]
 	for floor := 0; floor < N_FLOORS; floor++ {
 		for btn := 0; btn < hallButtonsPerFloor; btn++ {
@@ -442,6 +442,7 @@ func (myQueue *OrderQueue) TransitionSingleCabOrder(
 			if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection {
 				continue
 			}
+
 			otherCabOrder = GetCabOrder(myQueue, elevatorID, floor, assignedElevatorID)
 			if otherCabOrder == Completed {
 				return
@@ -459,6 +460,7 @@ func (myQueue *OrderQueue) TransitionSingleCabOrder(
 			if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection {
 				continue
 			}
+
 			otherCabOrder = GetCabOrder(myQueue, elevatorID, floor, assignedElevatorID)
 			if otherCabOrder == None || otherCabOrder == Completed {
 				return
@@ -474,6 +476,7 @@ func (myQueue *OrderQueue) TransitionSingleCabOrder(
 			if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection {
 				continue
 			}
+
 			otherCabOrder = GetCabOrder(myQueue, elevatorID, floor, assignedElevatorID)
 			switch otherCabOrder {
 			case None, Unconfirmed: // Must check
@@ -492,6 +495,7 @@ func (myQueue *OrderQueue) TransitionSingleCabOrder(
 			if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection {
 				continue
 			}
+
 			amIAlone = false
 			otherCabOrder = GetCabOrder(myQueue, elevatorID, floor, assignedElevatorID)
 			if otherCabOrder == Confirmed {
@@ -514,10 +518,7 @@ func (myQueue *OrderQueue) TransitionSingleCabOrder(
 	}
 }
 
-func (myQueue *OrderQueue) TransitionAllCabOrders(
-	myID int,
-	elevatorStates ElevatorStates,
-) {
+func (myQueue *OrderQueue) TransitionAllCabOrders(myID int, elevatorStates ElevatorStates) {
 	cabOrders := myQueue.Cab[myID]
 
 	for assignedElevatorID := 0; assignedElevatorID < N_ELEVATORS; assignedElevatorID++ {
