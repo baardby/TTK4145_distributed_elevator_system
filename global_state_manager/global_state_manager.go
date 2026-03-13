@@ -8,6 +8,7 @@ import (
 	. "distributed_elevator/global_state_manager/order_queue"
 	. "distributed_elevator/network/message"
 	. "distributed_elevator/supervisor"
+	"fmt"
 )
 
 func handleSupervisorEvent(
@@ -45,6 +46,12 @@ func handleReceivedMessage(
 	globalQueue.TransitionAllHallOrders(myId, *globalElevatorStates)
 	globalQueue.TransitionAllCabOrders(myId, *globalElevatorStates)
 
+	// TODO: Remove this after testing
+	for k, v := range globalQueue.Hall {
+		fmt.Printf("%6v :  %+v\n", k, v)
+	}
+	// END OF TODO
+
 	needRedistribute := fromOkToHardwareFault(receivedMessage.Peer, oldPeer)
 	if needRedistribute && lowestIDOnNetwork(*globalElevatorStates) == myId {
 		globalQueue.RedistributeHallOrders(myId, *globalElevatorStates, AssignNewOrder)
@@ -74,18 +81,53 @@ func handleThisElevatorUpdate( // Return false if order could not complete, true
 	globalElevatorStates *ElevatorStates,
 	prevMyElevatorQueue *[N_FLOORS][N_BUTTONS]bool,
 	myId int) bool {
+	fmt.Println("Handling Update Elevator Event") // TODO: Remove after testing
 
 	completed := true
 	for floor := 0; floor < N_FLOORS; floor++ {
 		for btn := 0; btn < N_BUTTONS; btn++ {
-			if (*prevMyElevatorQueue)[floor][btn] && !thisElevator.Requests[floor][btn] {
-				completed = globalQueue.CompleteMyOrder(ButtonEvent{Floor: floor, Button: ButtonType(btn)}, *globalElevatorStates, myId)
-			}
+			/*
+				if (*prevMyElevatorQueue)[floor][btn] && !thisElevator.Requests[floor][btn] { // TODO: Check if this can be built upon
+					fmt.Println("Trying to complete")
+					completed = globalQueue.CompleteMyOrder(ButtonEvent{Floor: floor, Button: ButtonType(btn)}, *globalElevatorStates, myId)
+					// Added
+					if !completed {
+						(*prevMyElevatorQueue)[floor][btn] = true
+					} else {
+						(*prevMyElevatorQueue)[floor][btn] = false
+					}
+					// End of added
+				}*/
+			// New modification
+			switch btn {
+			case 0, 1:
+				if (globalQueue.Hall[myId][floor][btn].State == Confirmed) && !thisElevator.Requests[floor][btn] {
+					fmt.Println("Trying to complete")
+					completed = globalQueue.CompleteMyOrder(ButtonEvent{Floor: floor, Button: ButtonType(btn)}, *globalElevatorStates, myId)
+					if !completed {
+						(*prevMyElevatorQueue)[floor][btn] = true
+					} else {
+						(*prevMyElevatorQueue)[floor][btn] = false
+					}
+				}
+			case 2:
+				if (globalQueue.Cab[myId][floor][myId] == Confirmed) && !thisElevator.Requests[floor][btn] {
+					fmt.Println("Trying to complete")
+					completed = globalQueue.CompleteMyOrder(ButtonEvent{Floor: floor, Button: ButtonType(btn)}, *globalElevatorStates, myId)
+					// Added
+					if !completed {
+						(*prevMyElevatorQueue)[floor][btn] = true
+					} else {
+						(*prevMyElevatorQueue)[floor][btn] = false
+					}
+					// End of added
+				}
+			} // END OF New modification
 		}
 	}
-	if completed {
-		*prevMyElevatorQueue = thisElevator.Requests
-	}
+	//if completed { // TODO: Double check if this can be built upon
+	//	*prevMyElevatorQueue = thisElevator.Requests
+	//}
 	globalElevatorStates.UpdatePeer(ThisElevatorToElevatorPeer(thisElevator, myId), myId)
 	return completed
 }

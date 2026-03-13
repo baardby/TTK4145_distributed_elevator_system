@@ -114,6 +114,7 @@ func Network_ListenerLoop(myID int,
 
 func testPrintRecvMsg(recvMsg *Message) {
 	fmt.Println("------")
+	fmt.Println(recvMsg.Peer.WorkingStatus)
 	fmt.Println(recvMsg.Peer.Floor)
 	fmt.Println(Elevator_BehaviourToString(recvMsg.Peer.Behaviour))
 	fmt.Println(Elevator_MotorDirectionToString(recvMsg.Peer.Direction))

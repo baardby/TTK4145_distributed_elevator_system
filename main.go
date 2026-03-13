@@ -17,11 +17,11 @@ import (
 func main() {
 
 	// Initializing Elevator ID
-	idFlag := flag.Int("id", -1, "elevator ID (1..N_ELEVATORS)")
+	idFlag := flag.Int("id", -1, "elevator ID (0..N_ELEVATORS-1)")
 	flag.Parse()
 
 	if *idFlag < 0 || *idFlag > N_ELEVATORS-1 {
-		fmt.Fprintf(os.Stderr, "error: --id must be in range 0..%d\n", N_ELEVATORS)
+		fmt.Fprintf(os.Stderr, "error: --id must be in range 0..%d\n", N_ELEVATORS-1)
 		os.Exit(2)
 	}
 	ID := *idFlag

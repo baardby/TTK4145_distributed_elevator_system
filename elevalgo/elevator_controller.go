@@ -2,6 +2,7 @@ package elevalgo //Må endres hvis det puttes inn i en mappe
 
 import (
 	. "distributed_elevator/elevio"
+	"fmt"
 	"time"
 )
 
@@ -35,10 +36,11 @@ func Elevalgo_ElevatorControllerLoop(updateQueueEvent <-chan [N_FLOORS][N_BUTTON
 		case newRequests := <-updateQueueEvent:
 			for floor := 0; floor < N_FLOORS; floor++ {
 				for btn := 0; btn < N_BUTTONS; btn++ {
-					if elevator.Requests[floor][btn] != newRequests[floor][btn] && newRequests[floor][btn] {
+					if newRequests[floor][btn] {
 						Fsm_OnRequestButtonPress(&elevator, floor, ButtonType(btn))
+					} else {
+						elevator.Requests[floor][btn] = newRequests[floor][btn]
 					}
-					elevator.Requests[floor][btn] = newRequests[floor][btn]
 				}
 			}
 			// Set lights accordingly to this new queue
@@ -64,6 +66,11 @@ func Elevalgo_ElevatorControllerLoop(updateQueueEvent <-chan [N_FLOORS][N_BUTTON
 				<-updateElevatorEvent
 				updateElevatorEvent <- elevator
 			}
+			// TODO: Remove this after testing
+			for k, v := range elevator.Requests {
+				fmt.Printf("%6v :  %+v\n", k, v)
+			}
+			// END OF TODO
 		default:
 			if Timer_TimedOut() {
 				Timer_Stop()
