@@ -10,7 +10,12 @@ import (
 	. "distributed_elevator/supervisor"
 )
 
-func handleSupervisorEvent(supervisorEvent SupervisorEvent, globalQueue *OrderQueue, globalElevatorStates *ElevatorStates, myId int) {
+func handleSupervisorEvent(
+	supervisorEvent SupervisorEvent,
+	globalQueue *OrderQueue,
+	globalElevatorStates *ElevatorStates,
+	myId int) {
+
 	switch supervisorEvent.Type {
 	case TimerElevatorTimeout:
 		globalElevatorStates.Peers[supervisorEvent.ElevatorID].WorkingStatus = StatusLostConnection
@@ -24,15 +29,20 @@ func handleSupervisorEvent(supervisorEvent SupervisorEvent, globalQueue *OrderQu
 	}
 }
 
-func handleReceivedMessage(receivedMessage Message, globalQueue *OrderQueue, globalElevatorStates *ElevatorStates, myId int) {
-	newPeer := receivedMessage.Peer
-	oldPeer := globalElevatorStates.Peers[newPeer.ID]
-	globalElevatorStates.UpdatePeer(newPeer, myId)
+func handleReceivedMessage(
+	receivedMessage Message,
+	globalQueue *OrderQueue,
+	globalElevatorStates *ElevatorStates,
+	myId int) {
+
+	oldPeer := globalElevatorStates.Peers[receivedMessage.Peer.ID]
+	globalElevatorStates.UpdatePeer(receivedMessage.Peer, myId)
+
 	globalQueue.UpdateOrderQueue(receivedMessage.HallOrders, receivedMessage.CabOrders, receivedMessage.ID)
 	globalQueue.TransitionAllHallOrders(myId, *globalElevatorStates)
 	globalQueue.TransitionAllCabOrders(myId, *globalElevatorStates)
 
-	needRedistribute := fromOkToHardwareFault(newPeer, oldPeer)
+	needRedistribute := fromOkToHardwareFault(receivedMessage.Peer, oldPeer)
 	if needRedistribute && lowestIDOnNetwork(*globalElevatorStates) == myId {
 		globalQueue.RedistributeHallOrders(myId, *globalElevatorStates, AssignNewOrder)
 	}
@@ -55,18 +65,26 @@ func lowestIDOnNetwork(globalElevatorStates ElevatorStates) int {
 	return -1 //return -1 if no elevator is StatusOK
 }
 
-func handleThisElevatorUpdate(thisElevator Elevator, globalQueue *OrderQueue, globalElevatorStates *ElevatorStates, prevMyElevatorQueue *[N_FLOORS][N_BUTTONS]bool, myId int) {
+func handleThisElevatorUpdate( // Return false if order could not complete, true otherwise
+	thisElevator Elevator,
+	globalQueue *OrderQueue,
+	globalElevatorStates *ElevatorStates,
+	prevMyElevatorQueue *[N_FLOORS][N_BUTTONS]bool,
+	myId int) bool {
 
+	completed := true
 	for floor := 0; floor < N_FLOORS; floor++ {
 		for btn := 0; btn < N_BUTTONS; btn++ {
 			if (*prevMyElevatorQueue)[floor][btn] && !thisElevator.Requests[floor][btn] {
-				globalQueue.CompleteMyOrder(ButtonEvent{Floor: floor, Button: ButtonType(btn)}, *globalElevatorStates, myId)
+				completed = globalQueue.CompleteMyOrder(ButtonEvent{Floor: floor, Button: ButtonType(btn)}, *globalElevatorStates, myId)
 			}
 		}
 	}
-	*prevMyElevatorQueue = thisElevator.Requests
-
+	if completed {
+		*prevMyElevatorQueue = thisElevator.Requests
+	}
 	globalElevatorStates.UpdatePeer(ThisElevatorToElevatorPeer(thisElevator, myId), myId)
+	return completed
 }
 
 func handleButtonEvent(buttonEvent ButtonEvent, globalQueue *OrderQueue, globalElevatorStates ElevatorStates, myId int) {
@@ -103,7 +121,10 @@ func Global_State_Manager(
 			updateOrderQueueEvent <- globalQueue
 
 		case thisElevatorUpdate := <-thisElevatorUpdateChan:
-			handleThisElevatorUpdate(thisElevatorUpdate, &globalQueue, &globalElevatorStates, &prevMyElevatorQueue, myId)
+			couldCompleteOrder := handleThisElevatorUpdate(thisElevatorUpdate, &globalQueue, &globalElevatorStates, &prevMyElevatorQueue, myId)
+			if !couldCompleteOrder {
+				myOrderListChan <- prevMyElevatorQueue
+			}
 			updateElevatorStateEvent <- globalElevatorStates.Peers[myId]
 			updateOrderQueueEvent <- globalQueue
 
