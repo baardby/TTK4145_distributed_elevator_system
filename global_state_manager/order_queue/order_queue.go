@@ -13,7 +13,7 @@ import (
 // !!! Check if aliveElevators map must be changed to connectedElevators in some functions
 
 const (
-	noElevatorAssigned  = 0
+	noElevatorAssigned  = -1
 	hallButtonsPerFloor = 2
 )
 
