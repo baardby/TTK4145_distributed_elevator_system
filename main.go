@@ -84,6 +84,7 @@ func main() {
 
 	// TEST ZONE
 	//TestOrderQueue()
+	//TestCostLogic()
 
 	select {}
 }

@@ -536,21 +536,18 @@ func TestOrderQueue() {
 	yourId := 2
 	hisId := 3
 
-	viewOfQueue := GenerateEmptyOrderQueue()
-	AddElevatorToQueue(&viewOfQueue, myId)
-	AddElevatorToQueue(&viewOfQueue, yourId)
-	AddElevatorToQueue(&viewOfQueue, hisId)
+	viewOfQueue := GenerateNewOrderQueue()
 
 	elevatorStates := GenerateNewElevatorStates(myId)
-	elevatorStates.Peers[myId-1].WorkingStatus = StatusOK
-	elevatorStates.Peers[myId-1].ID = myId
-	elevatorStates.Peers[myId-1].Floor = 0
-	elevatorStates.Peers[yourId-1].WorkingStatus = StatusLostConnection
-	elevatorStates.Peers[yourId-1].ID = yourId
-	elevatorStates.Peers[yourId-1].Floor = 0
-	elevatorStates.Peers[hisId-1].WorkingStatus = StatusLostConnection
-	elevatorStates.Peers[hisId-1].ID = hisId
-	elevatorStates.Peers[hisId-1].Floor = 0
+	elevatorStates.Peers[myId].WorkingStatus = StatusOK
+	elevatorStates.Peers[myId].ID = myId
+	elevatorStates.Peers[myId].Floor = 0
+	elevatorStates.Peers[yourId].WorkingStatus = StatusLostConnection
+	elevatorStates.Peers[yourId].ID = yourId
+	elevatorStates.Peers[yourId].Floor = 0
+	elevatorStates.Peers[hisId].WorkingStatus = StatusLostConnection
+	elevatorStates.Peers[hisId].ID = hisId
+	elevatorStates.Peers[hisId].Floor = 0
 
 	newButtonPress := ButtonEvent{
 		Floor:  0,
@@ -573,15 +570,15 @@ func TestOrderQueue() {
 		fmt.Printf("%6v :  %+v\n", k, v)
 	}
 
-	elevatorStates.Peers[yourId-1].WorkingStatus = StatusOK
-	elevatorStates.Peers[hisId-1].WorkingStatus = StatusOK
-	elevatorStates.Peers[myId-1].WorkingStatus = StatusLostConnection
+	elevatorStates.Peers[yourId].WorkingStatus = StatusOK
+	elevatorStates.Peers[hisId].WorkingStatus = StatusOK
+	elevatorStates.Peers[myId].WorkingStatus = StatusLostConnection
 
 	viewOfQueue.TransitionAllHallOrders(yourId, elevatorStates)
 
 	viewOfQueue.TransitionAllHallOrders(hisId, elevatorStates)
 
-	elevatorStates.Peers[myId-1].WorkingStatus = StatusOK
+	elevatorStates.Peers[myId].WorkingStatus = StatusOK
 
 	viewOfQueue.TransitionAllHallOrders(myId, elevatorStates)
 
