@@ -24,6 +24,9 @@ func handleSupervisorEvent(
 		}
 	case SupervisorHardwareFault:
 		globalElevatorStates.Peers[myId].WorkingStatus = StatusHardwareFault
+		if lowestIDOnNetwork(*globalElevatorStates) == myId {
+			globalQueue.RedistributeHallOrders(myId, *globalElevatorStates, AssignNewOrder)
+		}
 	case SupervisorHardwareRecovered:
 		globalElevatorStates.Peers[myId].WorkingStatus = StatusOK
 	}
