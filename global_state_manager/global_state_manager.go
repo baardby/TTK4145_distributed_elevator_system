@@ -46,8 +46,13 @@ func handleReceivedMessage(
 	globalQueue.TransitionAllHallOrders(myId, *globalElevatorStates)
 	globalQueue.TransitionAllCabOrders(myId, *globalElevatorStates)
 
+	handleHallLights(globalQueue, myId)
+
 	// TODO: Remove this after testing
 	for k, v := range globalQueue.Hall {
+		fmt.Printf("%6v :  %+v\n", k, v)
+	}
+	for k, v := range globalQueue.Cab {
 		fmt.Printf("%6v :  %+v\n", k, v)
 	}
 	// END OF TODO
@@ -99,9 +104,9 @@ func handleThisElevatorUpdate( // Return false if order could not complete, true
 					// End of added
 				}*/
 			// New modification
-			switch btn {
-			case 0, 1:
-				if (globalQueue.Hall[myId][floor][btn].State == Confirmed) && !thisElevator.Requests[floor][btn] {
+			switch ButtonType(btn) {
+			case BT_HallUp, BT_HallDown:
+				if (globalQueue.Hall[myId][floor][btn].State == Confirmed) && (globalQueue.Hall[myId][floor][btn].AssignedTo == myId) && !thisElevator.Requests[floor][btn] {
 					fmt.Println("Trying to complete")
 					completed = globalQueue.CompleteMyOrder(ButtonEvent{Floor: floor, Button: ButtonType(btn)}, *globalElevatorStates, myId)
 					if !completed {
@@ -110,7 +115,7 @@ func handleThisElevatorUpdate( // Return false if order could not complete, true
 						(*prevMyElevatorQueue)[floor][btn] = false
 					}
 				}
-			case 2:
+			case BT_Cab:
 				if (globalQueue.Cab[myId][floor][myId] == Confirmed) && !thisElevator.Requests[floor][btn] {
 					fmt.Println("Trying to complete")
 					completed = globalQueue.CompleteMyOrder(ButtonEvent{Floor: floor, Button: ButtonType(btn)}, *globalElevatorStates, myId)
@@ -119,6 +124,7 @@ func handleThisElevatorUpdate( // Return false if order could not complete, true
 						(*prevMyElevatorQueue)[floor][btn] = true
 					} else {
 						(*prevMyElevatorQueue)[floor][btn] = false
+						fmt.Println("Completed")
 					}
 					// End of added
 				}
@@ -135,6 +141,18 @@ func handleThisElevatorUpdate( // Return false if order could not complete, true
 func handleButtonEvent(buttonEvent ButtonEvent, globalQueue *OrderQueue, globalElevatorStates ElevatorStates, myId int) {
 	assignTo := AssignNewOrder(buttonEvent, globalElevatorStates, globalQueue.Cab[myId], myId)
 	globalQueue.AppendNewOrder(buttonEvent, myId, globalElevatorStates, assignTo)
+}
+
+func handleHallLights(globalQueue *OrderQueue, myId int) {
+	for floor := 0; floor < N_FLOORS; floor++ {
+		for btn := 0; btn < N_BUTTONS-1; btn++ {
+			if globalQueue.Hall[myId][floor][btn].State == Confirmed {
+				SetButtonLamp(ButtonType(btn), floor, true)
+			} else {
+				SetButtonLamp(ButtonType(btn), floor, false)
+			}
+		}
+	}
 }
 
 func Global_State_Manager(
@@ -177,6 +195,12 @@ func Global_State_Manager(
 			handleButtonEvent(buttonEvent, &globalQueue, globalElevatorStates, myId)
 			myOrderListChan <- globalQueue.RetrieveMyOrders(myId)
 			updateOrderQueueEvent <- globalQueue
+
+		default:
+			globalQueue.TransitionAllCabOrders(myId, globalElevatorStates)
+			globalQueue.TransitionAllHallOrders(myId, globalElevatorStates)
+			handleHallLights(&globalQueue, myId)
+			myOrderListChan <- globalQueue.RetrieveMyOrders(myId)
 		}
 	}
 }

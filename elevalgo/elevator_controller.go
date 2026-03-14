@@ -36,7 +36,7 @@ func Elevalgo_ElevatorControllerLoop(updateQueueEvent <-chan [N_FLOORS][N_BUTTON
 		case newRequests := <-updateQueueEvent:
 			for floor := 0; floor < N_FLOORS; floor++ {
 				for btn := 0; btn < N_BUTTONS; btn++ {
-					if newRequests[floor][btn] {
+					if (elevator.Requests[floor][btn] != newRequests[floor][btn]) && newRequests[floor][btn] {
 						Fsm_OnRequestButtonPress(&elevator, floor, ButtonType(btn))
 					} else {
 						elevator.Requests[floor][btn] = newRequests[floor][btn]
