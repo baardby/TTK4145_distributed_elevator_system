@@ -331,7 +331,7 @@ func (myQueue *OrderQueue) TransitionSingleHallOrder(
 				myQueue.Hall[myID] = *hallOrders // Ensuring we keep the lowest assignedTo ID even in transition failure
 				return
 			}
-			shouldISwitchAssigned := (elevatorPeer.WorkingStatus == StatusOK) && (otherHallOrder.AssignedTo != expectedAssignedTo) && (otherHallOrder.AssignedTo > noElevatorAssigned && elevatorID < myID)
+			shouldISwitchAssigned := (elevatorStates.Peers[otherHallOrder.AssignedTo].WorkingStatus == StatusOK) && (otherHallOrder.AssignedTo != expectedAssignedTo) && (otherHallOrder.AssignedTo > noElevatorAssigned) && (elevatorID < myID)
 			if shouldISwitchAssigned {
 				expectedAssignedTo = otherHallOrder.AssignedTo
 			}
@@ -357,7 +357,7 @@ func (myQueue *OrderQueue) TransitionSingleHallOrder(
 				hallOrders[floor][btn].AssignedTo = noElevatorAssigned
 			}
 
-			shouldISwitchAssigned := (elevatorPeer.WorkingStatus == StatusOK) && (otherHallOrder.AssignedTo != expectedAssignedTo) && (otherHallOrder.AssignedTo > noElevatorAssigned && elevatorID < myID)
+			shouldISwitchAssigned := (elevatorStates.Peers[otherHallOrder.AssignedTo].WorkingStatus == StatusOK) && (otherHallOrder.AssignedTo != expectedAssignedTo) && (otherHallOrder.AssignedTo > noElevatorAssigned) && (elevatorID < myID)
 			if shouldISwitchAssigned {
 				expectedAssignedTo = otherHallOrder.AssignedTo
 			}
@@ -368,6 +368,7 @@ func (myQueue *OrderQueue) TransitionSingleHallOrder(
 			// 	hallOrders[floor][btn].AssignedTo = noElevatorAssigned
 			// }
 		}
+		hallOrders[floor][btn].AssignedTo = expectedAssignedTo
 		myQueue.Hall[myID] = *hallOrders
 		return
 
