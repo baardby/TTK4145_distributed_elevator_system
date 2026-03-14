@@ -331,7 +331,7 @@ func (myQueue *OrderQueue) TransitionSingleHallOrder(
 				myQueue.Hall[myID] = *hallOrders // Ensuring we keep the lowest assignedTo ID even in transition failure
 				return
 			}
-			shouldISwitchAssigned := (elevatorStates.Peers[otherHallOrder.AssignedTo].WorkingStatus == StatusOK) && (otherHallOrder.AssignedTo != expectedAssignedTo) && (otherHallOrder.AssignedTo > noElevatorAssigned) && (elevatorID < myID)
+			shouldISwitchAssigned := (otherHallOrder.AssignedTo > noElevatorAssigned) && (elevatorStates.Peers[otherHallOrder.AssignedTo].WorkingStatus == StatusOK) && (otherHallOrder.AssignedTo != expectedAssignedTo) && (elevatorID < myID)
 			if shouldISwitchAssigned {
 				expectedAssignedTo = otherHallOrder.AssignedTo
 			}
@@ -342,6 +342,7 @@ func (myQueue *OrderQueue) TransitionSingleHallOrder(
 		return
 
 	case Confirmed:
+		canComplete := false
 		for _, elevatorPeer := range elevatorStates.Peers {
 			elevatorID := elevatorPeer.ID
 			if elevatorID == myID || elevatorPeer.WorkingStatus == StatusLostConnection {
@@ -354,10 +355,12 @@ func (myQueue *OrderQueue) TransitionSingleHallOrder(
 				return
 			case Completed:
 				hallOrders[floor][btn].State = Completed
-				hallOrders[floor][btn].AssignedTo = noElevatorAssigned
+				expectedAssignedTo = noElevatorAssigned
+				canComplete = true
+				continue
 			}
 
-			shouldISwitchAssigned := (elevatorStates.Peers[otherHallOrder.AssignedTo].WorkingStatus == StatusOK) && (otherHallOrder.AssignedTo != expectedAssignedTo) && (otherHallOrder.AssignedTo > noElevatorAssigned) && (elevatorID < myID)
+			shouldISwitchAssigned := !canComplete && (otherHallOrder.AssignedTo > noElevatorAssigned) && (elevatorStates.Peers[otherHallOrder.AssignedTo].WorkingStatus == StatusOK) && (otherHallOrder.AssignedTo != expectedAssignedTo) && (elevatorID < myID)
 			if shouldISwitchAssigned {
 				expectedAssignedTo = otherHallOrder.AssignedTo
 			}
