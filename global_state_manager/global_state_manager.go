@@ -9,6 +9,7 @@ import (
 	. "distributed_elevator/network/message"
 	. "distributed_elevator/supervisor"
 	"fmt"
+	"time"
 )
 
 func handleSupervisorEvent(
@@ -172,6 +173,9 @@ func Global_State_Manager(
 	globalElevatorStates := GenerateNewElevatorStates(myId)
 	prevMyElevatorQueue := [N_FLOORS][N_BUTTONS]bool{}
 
+	updateOrderListTicker := time.NewTicker(100 * time.Millisecond) // TODO: Change to 10Hz
+	defer updateOrderListTicker.Stop()
+
 	for {
 		select {
 		case supervisorEvent := <-supervisorEventChan:
@@ -196,7 +200,7 @@ func Global_State_Manager(
 			myOrderListChan <- globalQueue.RetrieveMyOrders(myId)
 			updateOrderQueueEvent <- globalQueue
 
-		default:
+		case <-updateOrderListTicker.C:
 			globalQueue.TransitionAllCabOrders(myId, globalElevatorStates)
 			globalQueue.TransitionAllHallOrders(myId, globalElevatorStates)
 			handleHallLights(&globalQueue, myId)

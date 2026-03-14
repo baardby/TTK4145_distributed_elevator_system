@@ -28,7 +28,7 @@ func Elevalgo_ElevatorControllerLoop(updateQueueEvent <-chan [N_FLOORS][N_BUTTON
 		Fsm_OnFloorArrival(&elevator, startFloor)
 	}
 
-	updateElevatorTicker := time.NewTicker(1000 * time.Millisecond) // TODO: CHANGE TO 10Hz?
+	updateElevatorTicker := time.NewTicker(100 * time.Millisecond) // TODO: CHANGE TO 10Hz?
 	defer updateElevatorTicker.Stop()
 
 	for {

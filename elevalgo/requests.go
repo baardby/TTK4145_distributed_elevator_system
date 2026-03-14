@@ -68,9 +68,18 @@ func Requests_ShouldStop(e Elevator) bool {
 	}
 }
 
+// TODO: Keep this until we can confirm our implementation is good
+//func Request_ShouldClearImmediately(e Elevator, btn_floor int, btn_type ButtonType) bool {
+//	return e.Floor == btn_floor && ((e.Direction == MD_Up && btn_type == BT_HallUp) ||
+//		(e.Direction == MD_Down && btn_type == BT_HallDown) ||
+//		e.Direction == MD_Stop ||
+//		btn_type == BT_Cab)
+//}
+// END OF TODO
+
 func Request_ShouldClearImmediately(e Elevator, btn_floor int, btn_type ButtonType) bool {
-	return e.Floor == btn_floor && ((e.Direction == MD_Up && btn_type == BT_HallUp) ||
-		(e.Direction == MD_Down && btn_type == BT_HallDown) ||
+	return e.Floor == btn_floor && (((e.Direction == MD_Up && btn_type == BT_HallUp) || (e.Direction == MD_Up && btn_type == BT_HallDown && !requests_above(e))) ||
+		((e.Direction == MD_Down && btn_type == BT_HallDown) || (e.Direction == MD_Down && btn_type == BT_HallUp && !requests_below(e))) ||
 		e.Direction == MD_Stop ||
 		btn_type == BT_Cab)
 }
@@ -79,12 +88,18 @@ func Requests_ClearAtCurrentFloor(e Elevator) Elevator {
 	e.Requests[e.Floor][BT_Cab] = false
 	switch e.Direction {
 	case MD_Up:
-		if requests_above(e) == false && e.Requests[e.Floor][BT_HallUp] == false {
+		//if requests_above(e) == false && e.Requests[e.Floor][BT_HallUp] == false {
+		//	e.Requests[e.Floor][BT_HallDown] = false
+		//}
+		if requests_above(e) == false {
 			e.Requests[e.Floor][BT_HallDown] = false
 		}
 		e.Requests[e.Floor][BT_HallUp] = false
 	case MD_Down:
-		if requests_below(e) == false && e.Requests[e.Floor][BT_HallDown] == false {
+		//if requests_below(e) == false && e.Requests[e.Floor][BT_HallDown] == false {
+		//	e.Requests[e.Floor][BT_HallUp] = false
+		//}
+		if requests_below(e) == false {
 			e.Requests[e.Floor][BT_HallUp] = false
 		}
 		e.Requests[e.Floor][BT_HallDown] = false
