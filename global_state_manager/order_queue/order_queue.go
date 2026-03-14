@@ -185,6 +185,8 @@ func (queue *OrderQueue) AppendNewOrder(btnEv ButtonEvent, myID int, elevatorSta
 	}
 }
 
+// CONTINUE HERE
+
 func (myQueue *OrderQueue) CompleteMyOrder(btnEvent ButtonEvent, elevatorStates ElevatorStates, myID int) bool {
 	floor := btnEvent.Floor
 	btn := int(btnEvent.Button)
