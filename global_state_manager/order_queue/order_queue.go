@@ -188,6 +188,7 @@ func (queue *OrderQueue) AppendNewOrder(btnEv ButtonEvent, myID int, elevatorSta
 func (myQueue *OrderQueue) CompleteMyOrder(btnEvent ButtonEvent, elevatorStates ElevatorStates, myID int) bool {
 	floor := btnEvent.Floor
 	btn := int(btnEvent.Button)
+
 	if floor < 0 || floor >= N_FLOORS {
 		fmt.Println("Attempted to complete order at invalid floor: ", floor)
 		return false
@@ -196,6 +197,7 @@ func (myQueue *OrderQueue) CompleteMyOrder(btnEvent ButtonEvent, elevatorStates 
 		fmt.Println("Attempted to complete an order for non-working elevator.")
 		return false
 	}
+
 	switch btnEvent.Button {
 	case BT_Cab:
 		for _, elevatorPeer := range elevatorStates.Peers {
@@ -218,6 +220,8 @@ func (myQueue *OrderQueue) CompleteMyOrder(btnEvent ButtonEvent, elevatorStates 
 				continue
 			}
 			elevatorID := elevatorPeer.ID
+			// Checks every active elevator's view of my cab order at this floor.
+			// If any of them is not in Confirmed -> I cannot mark this order as Completed.
 			if GetHallOrder(myQueue, elevatorID, floor, btn).State != Confirmed {
 				fmt.Println("Some elevator(s) not in Confirmed.") // !!! Might need to also allow complete order
 				return false
@@ -266,7 +270,7 @@ func (myQueue *OrderQueue) RedistributeHallOrders(myID int, elevatorStates Eleva
 	myHallOrders := myQueue.Hall[myID]
 
 	for floor := 0; floor < N_FLOORS; floor++ {
-		for btn := 0; btn < N_BUTTONS; btn++ {
+		for btn := 0; btn < N_BUTTONS-1; btn++ {
 			myHallOrder := myHallOrders[floor][btn]
 
 			if myHallOrder.AssignedTo == noElevatorAssigned {
@@ -327,7 +331,7 @@ func (myQueue *OrderQueue) TransitionSingleHallOrder(
 				myQueue.Hall[myID] = *hallOrders // Ensuring we keep the lowest assignedTo ID even in transition failure
 				return
 			}
-			shouldISwitchAssigned := (otherHallOrder.AssignedTo != expectedAssignedTo && otherHallOrder.AssignedTo > noElevatorAssigned && elevatorID < myID)
+			shouldISwitchAssigned := (elevatorPeer.WorkingStatus == StatusOK) && (otherHallOrder.AssignedTo != expectedAssignedTo) && (otherHallOrder.AssignedTo > noElevatorAssigned && elevatorID < myID)
 			if shouldISwitchAssigned {
 				expectedAssignedTo = otherHallOrder.AssignedTo
 			}
@@ -335,7 +339,6 @@ func (myQueue *OrderQueue) TransitionSingleHallOrder(
 		hallOrders[floor][btn].State = Confirmed
 		hallOrders[floor][btn].AssignedTo = expectedAssignedTo
 		myQueue.Hall[myID] = *hallOrders
-		// SetButtonLamp(ButtonType(btn), floor, true)	// !!! Ensure this works correctly
 		return
 
 	case Confirmed:
@@ -352,10 +355,9 @@ func (myQueue *OrderQueue) TransitionSingleHallOrder(
 			case Completed:
 				hallOrders[floor][btn].State = Completed
 				hallOrders[floor][btn].AssignedTo = noElevatorAssigned
-				// SetButtonLamp(ButtonType(btn), floor, false)	// !!! Ensure this works correctly
 			}
 
-			shouldISwitchAssigned := (otherHallOrder.AssignedTo != expectedAssignedTo && otherHallOrder.AssignedTo > noElevatorAssigned && elevatorID < myID)
+			shouldISwitchAssigned := (elevatorPeer.WorkingStatus == StatusOK) && (otherHallOrder.AssignedTo != expectedAssignedTo) && (otherHallOrder.AssignedTo > noElevatorAssigned && elevatorID < myID)
 			if shouldISwitchAssigned {
 				expectedAssignedTo = otherHallOrder.AssignedTo
 			}
