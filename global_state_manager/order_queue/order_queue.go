@@ -10,8 +10,6 @@ import (
 
 // !!! Variable and function names can be improved
 
-// !!! Check if aliveElevators map must be changed to connectedElevators in some functions
-
 const (
 	noElevatorAssigned  = -1
 	hallButtonsPerFloor = 2
@@ -22,10 +20,10 @@ type OrderState int
 // !!! Better comments
 // !!! Switch back to None = 0?
 const (
-	Completed   OrderState = iota // Order completed by at least one
-	None                          // Order completed by all
-	Unconfirmed                   // Order confirmed by at least one
-	Confirmed                     // Order confirmed by all
+	Completed   OrderState = iota // Order completed by at least one elevator.
+	None                          // Order completed by all elevators, or order never existed.
+	Unconfirmed                   // Order confirmed by at least one elevator.
+	Confirmed                     // Order confirmed by all connected elevators.
 )
 
 type HallOrder struct {
@@ -33,20 +31,18 @@ type HallOrder struct {
 	AssignedTo int
 }
 
+// Matrix of all hall orders, from the perspective of a single elevator.
+// Each order has a state and an assigned elevator ID.
 type AllHallOrders [N_FLOORS][hallButtonsPerFloor]HallOrder
+
+// Matrix of all cab orders, from the perspective of a single elevator.
+// Each order has a state, and is assigned to the elevator corresponding to its column index.
 type AllCabOrders [N_FLOORS][N_ELEVATORS]OrderState
 
 type OrderQueue struct {
-	Hall map[int]AllHallOrders // elevatorID -> that elevator's view of all hall orders
-	Cab  map[int]AllCabOrders  // elevatorID -> that elevator's view of cab orders
+	Hall map[int]AllHallOrders // elevatorID -> that elevator's view of all hall orders.
+	Cab  map[int]AllCabOrders  // elevatorID -> that elevator's view of all cab orders.
 }
-
-// func GenerateEmptyOrderQueue() OrderQueue {
-// 	return OrderQueue{
-// 		Hall: make(map[int]AllHallOrders),
-// 		Cab:  make(map[int]AllCabOrders),
-// 	}
-// }
 
 func IsElevatorInQueue(queue *OrderQueue, viewerID int) bool {
 	_, inHall := queue.Hall[viewerID]
@@ -54,30 +50,12 @@ func IsElevatorInQueue(queue *OrderQueue, viewerID int) bool {
 	return inHall && inCab
 }
 
-// Function must be called with any elevator that is added to the system, before it can be assigned orders
-// func AddElevatorToQueue(queue *OrderQueue, viewerID int) {
-// 	if !IsElevatorInQueue(queue, viewerID) {
-// 		queue.Hall[viewerID] = AllHallOrders{
-// 			{{State: None, AssignedTo: noElevatorAssigned}, {State: None, AssignedTo: noElevatorAssigned}},
-// 			{{State: None, AssignedTo: noElevatorAssigned}, {State: None, AssignedTo: noElevatorAssigned}},
-// 			{{State: None, AssignedTo: noElevatorAssigned}, {State: None, AssignedTo: noElevatorAssigned}},
-// 			{{State: None, AssignedTo: noElevatorAssigned}, {State: None, AssignedTo: noElevatorAssigned}},
-// 		}
-// 		queue.Cab[viewerID] = AllCabOrders{
-// 			{None, None, None},
-// 			{None, None, None},
-// 			{None, None, None},
-// 			{None, None, None},
-// 		}
-// 	}
-// }
-
 func GenerateNewOrderQueue() OrderQueue {
 	queue := OrderQueue{
 		Hall: make(map[int]AllHallOrders),
 		Cab:  make(map[int]AllCabOrders),
 	}
-
+	// Initialize the order queue with empty orders for each elevator.
 	for viewerID := 0; viewerID < N_ELEVATORS; viewerID++ {
 		var hallOrders AllHallOrders
 		var cabOrders AllCabOrders
@@ -95,7 +73,6 @@ func GenerateNewOrderQueue() OrderQueue {
 		queue.Hall[viewerID] = hallOrders
 		queue.Cab[viewerID] = cabOrders
 	}
-
 	return queue
 }
 
@@ -116,6 +93,7 @@ func (myQueue *OrderQueue) RetrieveMyOrders(myID int) [N_FLOORS][N_BUTTONS]bool 
 				if GetCabOrder(myQueue, myID, floor, myID) == Confirmed {
 					orders[floor][btn] = true
 				}
+
 			case BT_HallUp, BT_HallDown:
 				hallOrder := GetHallOrder(myQueue, myID, floor, btn)
 				if hallOrder.AssignedTo == myID && hallOrder.State == Confirmed {
@@ -127,22 +105,24 @@ func (myQueue *OrderQueue) RetrieveMyOrders(myID int) [N_FLOORS][N_BUTTONS]bool 
 	return orders
 }
 
-// When a message is received with an order queue, this function should be called to update the local order queue with the new information.
-// Only updates the orders for the elevator that sent the message, identified by ID.
-func (myQueue *OrderQueue) UpdateOrderQueue(otherHallOrders AllHallOrders, otherCabOrders AllCabOrders, viewerID int) {
-	if !IsElevatorInQueue(myQueue, viewerID) {
+// UpdateOrderQueue updates the local replica of the distributed order queue
+// using information received from another elevator over the network.
+//
+// Each elevator broadcasts its view of assigned orders. When such a message
+// is received, this function updates the local queue entries corresponding
+// to the sending elevator (viewerID). // !!! Too much?
+//
+// Only the slice belonging to viewerID is updated.
+func (queue *OrderQueue) UpdateOrderQueue(otherHallOrders AllHallOrders, otherCabOrders AllCabOrders, viewerID int) {
+	if !IsElevatorInQueue(queue, viewerID) {
 		fmt.Println("Attempted to update order queue with elevator not in queue: ", viewerID)
 		return
 	}
-	myQueue.Hall[viewerID] = otherHallOrders
-	myQueue.Cab[viewerID] = otherCabOrders
+	queue.Hall[viewerID] = otherHallOrders
+	queue.Cab[viewerID] = otherCabOrders
 }
 
-func IsOrderInProgress(
-	queue *OrderQueue,
-	elevatorStates ElevatorStates,
-	btnEv ButtonEvent,
-) bool {
+func IsOrderInProgress(queue *OrderQueue, elevatorStates ElevatorStates, btnEv ButtonEvent) bool {
 	floor := btnEv.Floor
 	btn := int(btnEv.Button)
 
@@ -151,12 +131,15 @@ func IsOrderInProgress(
 			continue
 		}
 		elevatorID := elevatorPeer.ID
-		if btnEv.Button != BT_Cab {
+		switch btnEv.Button {
+		case BT_HallUp, BT_HallDown:
 			order := GetHallOrder(queue, elevatorID, floor, btn)
 			if order.State == Unconfirmed || order.State == Confirmed {
 				return true
 			}
-		} else {
+
+		case BT_Cab:
+			// Cab orders belong to a specific elevator, so we check the cab order for this elevator at this floor.
 			order := GetCabOrder(queue, elevatorID, floor, elevatorID)
 			if order == Unconfirmed || order == Confirmed {
 				return true
@@ -166,7 +149,9 @@ func IsOrderInProgress(
 	return false
 }
 
-// Function that appends new order, must call cost function to find assignTo parameter
+// AppendNewOrder initiates a new local order in the order queue.
+// For hall orders, assignTo must be chosen by the caller beforehand.
+// For cab orders, the order always belongs to myID.
 func (queue *OrderQueue) AppendNewOrder(btnEv ButtonEvent, myID int, elevatorStates ElevatorStates, assignTo int) {
 	floor := btnEv.Floor
 	btn := int(btnEv.Button)
@@ -183,16 +168,15 @@ func (queue *OrderQueue) AppendNewOrder(btnEv ButtonEvent, myID int, elevatorSta
 	switch btnEv.Button {
 	case BT_Cab:
 		cabOrders := queue.Cab[myID]
-		cabOrders[floor][assignTo] = Unconfirmed // assignTo should always be myID for cab orders
+		cabOrders[floor][myID] = Unconfirmed
 		queue.Cab[myID] = cabOrders
+
 	case BT_HallUp, BT_HallDown:
 		if assignTo < 0 || assignTo >= N_ELEVATORS {
 			fmt.Println("Attempted to append invalid assignedTo: ", assignTo)
 			return
 		}
-
 		hallOrders := queue.Hall[myID]
-
 		hallOrders[floor][btn] = HallOrder{
 			State:      Unconfirmed,
 			AssignedTo: assignTo,
@@ -220,13 +204,14 @@ func (myQueue *OrderQueue) CompleteMyOrder(btnEvent ButtonEvent, elevatorStates 
 			}
 			elevatorID := elevatorPeer.ID
 			if GetCabOrder(myQueue, elevatorID, floor, myID) != Confirmed {
-				fmt.Println("Some elevator(s) not in Confirmed.") // Might need to also allow complete order
+				fmt.Println("Some elevator(s) not in Confirmed.") // !!! Might need to also allow complete order
 				return false
 			}
 		}
 		cabOrders := myQueue.Cab[myID]
 		cabOrders[floor][myID] = Completed
 		myQueue.Cab[myID] = cabOrders
+
 	case BT_HallUp, BT_HallDown:
 		for _, elevatorPeer := range elevatorStates.Peers {
 			if elevatorPeer.WorkingStatus == StatusLostConnection {
@@ -234,7 +219,7 @@ func (myQueue *OrderQueue) CompleteMyOrder(btnEvent ButtonEvent, elevatorStates 
 			}
 			elevatorID := elevatorPeer.ID
 			if GetHallOrder(myQueue, elevatorID, floor, btn).State != Confirmed {
-				fmt.Println("Some elevator(s) not in Confirmed.") // Might need to also allow complete order
+				fmt.Println("Some elevator(s) not in Confirmed.") // !!! Might need to also allow complete order
 				return false
 			}
 		}
