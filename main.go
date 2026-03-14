@@ -35,7 +35,8 @@ func main() {
 	newFloorEvent := make(chan int)
 	stopEvent := make(chan bool)
 	obstrEvent := make(chan bool)
-	updateElevatorEvent := make(chan Elevator, 1)
+	stateToGSM := make(chan Elevator, 1)
+	stateToSupervisor := make(chan Elevator, 1)
 
 	receivedFromPeerEvent := make(chan int)
 	receivedMessageEvent := make(chan Message)
@@ -60,7 +61,8 @@ func main() {
 		stopEvent,
 		obstrEvent,
 		newButtonEvent,
-		updateElevatorEvent)
+		stateToGSM,
+		stateToSupervisor)
 
 	// Network goroutines
 	go Network_ListenerLoop(ID,
@@ -74,13 +76,16 @@ func main() {
 	go Global_State_Manager(ID,
 		supervisorEvent,
 		receivedMessageEvent,
-		updateElevatorEvent,
+		stateToGSM,
 		newButtonEvent,
 		updateQueueEvent,
 		newElevStateToSendEvent,
 		newOrderQueueToSendEvent)
 
 	// Supervisor goroutines
+	go Supervisor(receivedFromPeerEvent,
+		stateToSupervisor,
+		supervisorEvent)
 
 	// TEST ZONE
 	//TestOrderQueue()

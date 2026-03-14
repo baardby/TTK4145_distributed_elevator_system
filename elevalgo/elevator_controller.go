@@ -10,8 +10,9 @@ func Elevalgo_ElevatorControllerLoop(updateQueueEvent <-chan [N_FLOORS][N_BUTTON
 	newFloorEvent <-chan int,
 	stopEvent <-chan bool,
 	obstrEvent <-chan bool,
-	buttonPressEvent <-chan ButtonEvent, // FOR TESTING
-	updateElevatorEvent chan Elevator) {
+	buttonPressEvent <-chan ButtonEvent, // FOR TESTING WITH SINGLE ELEVATOR
+	stateToGSM chan Elevator,
+	stateToSupervisor chan Elevator) {
 
 	var elevator Elevator = Elevator_Uninitialized()
 
@@ -60,12 +61,22 @@ func Elevalgo_ElevatorControllerLoop(updateQueueEvent <-chan [N_FLOORS][N_BUTTON
 		case <-updateElevatorTicker.C:
 			select {
 			// Try send new update
-			case updateElevatorEvent <- elevator:
+			case stateToGSM <- elevator:
 			// Dump the channel if the old message wasn't received
 			default:
-				<-updateElevatorEvent
-				updateElevatorEvent <- elevator
+				<-stateToGSM
+				stateToGSM <- elevator
 			}
+
+			select {
+			// Try send new update
+			case stateToSupervisor <- elevator:
+			// Dump the channel if the old message wasn't received
+			default:
+				<-stateToSupervisor
+				stateToSupervisor <- elevator
+			}
+
 			// TODO: Remove this after testing
 			for k, v := range elevator.Requests {
 				fmt.Printf("%6v :  %+v\n", k, v)

@@ -91,6 +91,7 @@ func updateMovingTimer(supervisor *supervisor, elevator Elevator) {
 	if supervisor.movingTimer.active {
 		if elevator.Floor != supervisor.lastFloor {
 			supervisor.movingTimer.startTime = time.Now()
+			supervisor.lastFloor = elevator.Floor
 		}
 		if elevator.Behaviour != EB_Moving {
 			supervisor.movingTimer.active = false
@@ -98,6 +99,7 @@ func updateMovingTimer(supervisor *supervisor, elevator Elevator) {
 	} else if elevator.Behaviour == EB_Moving {
 		supervisor.movingTimer.startTime = time.Now()
 		supervisor.movingTimer.active = true
+		supervisor.lastFloor = elevator.Floor
 	}
 }
 
@@ -135,10 +137,14 @@ func Supervisor(
 	updateElevatorEvt <-chan Elevator,
 	SupervisorEventChan chan<- SupervisorEvent) {
 
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
+	// Wait for elevator to find floor
+	elevatorStartState := <-updateElevatorEvt
+
+	healthCheckTicker := time.NewTicker(100 * time.Millisecond)
+	defer healthCheckTicker.Stop()
 
 	sup := initSupervisor()
+	sup.lastFloor = elevatorStartState.Floor
 
 	for {
 		select {
@@ -154,7 +160,7 @@ func Supervisor(
 			}
 			handleElevatorUpdate(&sup, elevator)
 
-		case <-ticker.C:
+		case <-healthCheckTicker.C:
 			if id := sup.elevatorTimers.lostConnectionToElevator(); id != -1 {
 				SupervisorEventChan <- SupervisorEvent{
 					Type:       TimerElevatorTimeout,

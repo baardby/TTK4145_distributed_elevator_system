@@ -104,7 +104,7 @@ func Network_ListenerLoop(myID int,
 			listener.testPrintPeerList() // FOR TESTING
 
 			// Notify Supervisor of new msg from peer
-			//receivedFromPeerEvent <- recvMsg.ID
+			receivedFromPeerEvent <- recvMsg.ID
 
 			// Send message to global state manager
 			receivedMessageEvent <- recvMsg

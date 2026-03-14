@@ -73,7 +73,7 @@ func Network_SenderLoop(myID int,
 	time.Sleep(200 * time.Millisecond) // Sleep to let other goroutines begin
 
 	// Setting up periodic sending
-	sendTicker := time.NewTicker(1000 * time.Millisecond) // TODO: Change to 10Hz
+	sendTicker := time.NewTicker(100 * time.Millisecond) // TODO: Change to 10Hz
 	defer sendTicker.Stop()
 
 	for {
