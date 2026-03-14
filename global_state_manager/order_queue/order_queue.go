@@ -219,7 +219,7 @@ func (myQueue *OrderQueue) CompleteMyOrder(btnEvent ButtonEvent, elevatorStates 
 				continue
 			}
 			elevatorID := elevatorPeer.ID
-			if GetCabOrder(myQueue, elevatorID, floor, elevatorID) != Confirmed {
+			if GetCabOrder(myQueue, elevatorID, floor, myID) != Confirmed {
 				fmt.Println("Some elevator(s) not in Confirmed.") // Might need to also allow complete order
 				return false
 			}
