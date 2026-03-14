@@ -112,13 +112,13 @@ func (myQueue *OrderQueue) RetrieveMyOrders(myID int) [N_FLOORS][N_BUTTONS]bool 
 	for floor := 0; floor < N_FLOORS; floor++ {
 		for btn := 0; btn < N_BUTTONS; btn++ {
 			switch ButtonType(btn) {
-			case BT_HallDown, BT_HallUp:
-				hallOrder := GetHallOrder(myQueue, myID, floor, btn)
-				if hallOrder.AssignedTo == myID && hallOrder.State == Confirmed {
-					orders[floor][btn] = true
-				}
 			case BT_Cab:
 				if GetCabOrder(myQueue, myID, floor, myID) == Confirmed {
+					orders[floor][btn] = true
+				}
+			case BT_HallUp, BT_HallDown:
+				hallOrder := GetHallOrder(myQueue, myID, floor, btn)
+				if hallOrder.AssignedTo == myID && hallOrder.State == Confirmed {
 					orders[floor][btn] = true
 				}
 			}
@@ -185,7 +185,7 @@ func (queue *OrderQueue) AppendNewOrder(btnEv ButtonEvent, myID int, elevatorSta
 		cabOrders := queue.Cab[myID]
 		cabOrders[floor][assignTo] = Unconfirmed // assignTo should always be myID for cab orders
 		queue.Cab[myID] = cabOrders
-	default:
+	case BT_HallUp, BT_HallDown:
 		if assignTo < 0 || assignTo >= N_ELEVATORS {
 			fmt.Println("Attempted to append invalid assignedTo: ", assignTo)
 			return
@@ -227,7 +227,7 @@ func (myQueue *OrderQueue) CompleteMyOrder(btnEvent ButtonEvent, elevatorStates 
 		cabOrders := myQueue.Cab[myID]
 		cabOrders[floor][myID] = Completed
 		myQueue.Cab[myID] = cabOrders
-	default:
+	case BT_HallUp, BT_HallDown:
 		for _, elevatorPeer := range elevatorStates.Peers {
 			if elevatorPeer.WorkingStatus == StatusLostConnection {
 				continue
