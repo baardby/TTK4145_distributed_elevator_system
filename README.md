@@ -26,6 +26,7 @@ Our distributed elevator utilizes the Go programming language's capabilities for
 - Network sender
 - Supervisor
 - Global state manager (GSM)
+
 The polling goroutines are used to achieve availability in the physical interface with the elevator. All button presses and sensor interactions are to be registered and taken care of by the elevator controller and GSM goroutine. The GSM goroutine handles the elevator's view of the global state, i.e. the state of the other elevators it has received and the global request queue. It uses inputs from the call button poller to add new requests and ensure correct transition in the state of the requests. The elevator controller takes the requests assigned to the elevator, tries to complete them in a sensible order and keeps track of the state of the physical elevator. This information is used by the supervisor goroutine to keep track of the health of the system. It will keep track of how long since the elevator has heard from its peers, how long the elevator has been obstructed, and how long it has been moving between floors, to determine if the others or itself has experienced failure. At last is the network listener which receives information from the network and notifies supervisor of who it received from, and GSM of what was received.
 
 
