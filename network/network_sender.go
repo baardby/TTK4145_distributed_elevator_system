@@ -82,6 +82,7 @@ func Network_SenderLoop(myID int,
 	var msgToSend Message
 	msgToSend.ID = myID
 	msgToSend.NetworkCode = NETWORK_CODE
+	msgToSend.UpdateMessage(sender.MyElevator, sender.HallOrders, sender.CabOrders)
 
 	time.Sleep(200 * time.Millisecond) // Sleep to let other goroutines begin
 
