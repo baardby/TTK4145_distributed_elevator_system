@@ -11,8 +11,8 @@ import (
 // !!! Variable and function names can be improved
 
 const (
-	noElevatorAssigned  = -1
-	hallButtonsPerFloor = 2
+	NoElevatorAssigned  = -1
+	HallButtonsPerFloor = 2
 )
 
 type OrderState int
@@ -33,7 +33,7 @@ type HallOrder struct {
 
 // Matrix of all hall orders, from the perspective of a single elevator.
 // Each order has a state and an assigned elevator ID.
-type AllHallOrders [N_FLOORS][hallButtonsPerFloor]HallOrder
+type AllHallOrders [N_FLOORS][HallButtonsPerFloor]HallOrder
 
 // Matrix of all cab orders, from the perspective of a single elevator.
 // Each order has a state, and is assigned to the elevator corresponding to its column index.
@@ -54,10 +54,10 @@ func GenerateNewOrderQueue() OrderQueue {
 		var hallOrders AllHallOrders
 		var cabOrders AllCabOrders
 		for floor := 0; floor < N_FLOORS; floor++ {
-			for btn := 0; btn < hallButtonsPerFloor; btn++ {
+			for btn := 0; btn < HallButtonsPerFloor; btn++ {
 				hallOrders[floor][btn] = HallOrder{
 					State:      None,
-					AssignedTo: noElevatorAssigned,
+					AssignedTo: NoElevatorAssigned,
 				}
 			}
 			for elevatorID := 0; elevatorID < N_ELEVATORS; elevatorID++ {
@@ -234,7 +234,7 @@ func (myQueue *OrderQueue) CompleteMyOrder(btnEvent ButtonEvent, elevatorStates 
 		}
 		hallOrders[floor][btn] = HallOrder{
 			State:      Completed,
-			AssignedTo: noElevatorAssigned,
+			AssignedTo: NoElevatorAssigned,
 		}
 		myQueue.Hall[myID] = hallOrders
 	}
@@ -253,7 +253,7 @@ func (myQueue *OrderQueue) RedistributeHallOrders(
 		for btn := 0; btn < N_BUTTONS-1; btn++ {
 			order := myHallOrders[floor][btn]
 
-			if order.AssignedTo == noElevatorAssigned || elevatorStates.Peers[order.AssignedTo].WorkingStatus == StatusOK {
+			if order.AssignedTo == NoElevatorAssigned || elevatorStates.Peers[order.AssignedTo].WorkingStatus == StatusOK {
 				continue
 			}
 			buttonEvent := ButtonEvent{
@@ -314,7 +314,7 @@ func (myQueue *OrderQueue) TransitionSingleHallOrder(
 				myQueue.Hall[myID] = *hallOrders // Ensuring we keep the lowest assignedTo ID even in transition failure
 				return
 			}
-			assignedToWorkingElevator := (otherHallOrder.AssignedTo > noElevatorAssigned) && (elevatorStates.Peers[otherHallOrder.AssignedTo].WorkingStatus == StatusOK)
+			assignedToWorkingElevator := (otherHallOrder.AssignedTo > NoElevatorAssigned) && (elevatorStates.Peers[otherHallOrder.AssignedTo].WorkingStatus == StatusOK)
 			shouldISwitchAssigned := assignedToWorkingElevator && (otherHallOrder.AssignedTo != currentAssignedTo) && (elevatorID < myID)
 
 			if shouldISwitchAssigned {
@@ -339,11 +339,11 @@ func (myQueue *OrderQueue) TransitionSingleHallOrder(
 				return
 			case Completed:
 				hallOrders[floor][btn].State = Completed
-				currentAssignedTo = noElevatorAssigned
+				currentAssignedTo = NoElevatorAssigned
 				canComplete = true
 				continue
 			}
-			assignedToWorkingElevator := (otherHallOrder.AssignedTo > noElevatorAssigned) && (elevatorStates.Peers[otherHallOrder.AssignedTo].WorkingStatus == StatusOK)
+			assignedToWorkingElevator := (otherHallOrder.AssignedTo > NoElevatorAssigned) && (elevatorStates.Peers[otherHallOrder.AssignedTo].WorkingStatus == StatusOK)
 			shouldISwitchAssigned := !canComplete && assignedToWorkingElevator && (otherHallOrder.AssignedTo != currentAssignedTo) && (elevatorID < myID)
 
 			if shouldISwitchAssigned {
@@ -376,7 +376,7 @@ func (myQueue *OrderQueue) TransitionSingleHallOrder(
 		}
 		if amIAlone {
 			hallOrders[floor][btn].State = None
-			hallOrders[floor][btn].AssignedTo = noElevatorAssigned
+			hallOrders[floor][btn].AssignedTo = NoElevatorAssigned
 		} else if hallOrders[floor][btn].State == Completed {
 			hallOrders[floor][btn].State = None
 		}
@@ -389,7 +389,7 @@ func (myQueue *OrderQueue) TransitionSingleHallOrder(
 func (myQueue *OrderQueue) TransitionAllHallOrders(myID int, elevatorStates ElevatorStates) {
 	hallOrders := myQueue.Hall[myID]
 	for floor := 0; floor < N_FLOORS; floor++ {
-		for btn := 0; btn < hallButtonsPerFloor; btn++ {
+		for btn := 0; btn < HallButtonsPerFloor; btn++ {
 			myQueue.TransitionSingleHallOrder(myID, elevatorStates, &hallOrders, floor, btn)
 		}
 	}

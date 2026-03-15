@@ -108,7 +108,7 @@ func handleThisElevatorUpdate( // Return false if order could not complete, true
 			// New modification
 			switch ButtonType(btn) {
 			case BT_HallUp, BT_HallDown:
-				if (globalQueue.Hall[myId][floor][btn].State == Confirmed) && (globalQueue.Hall[myId][floor][btn].AssignedTo == myId) && !thisElevator.Requests[floor][btn] {
+				if (globalQueue.Hall[myId][floor][btn].State == Confirmed) && (globalQueue.Hall[myId][floor][btn].AssignedTo == myId) && !thisElevator.Requests[floor][btn] && thisElevator.Floor == floor {
 					fmt.Println("Trying to complete")
 					completed = globalQueue.CompleteMyOrder(ButtonEvent{Floor: floor, Button: ButtonType(btn)}, *globalElevatorStates, myId)
 					if !completed {
@@ -118,7 +118,7 @@ func handleThisElevatorUpdate( // Return false if order could not complete, true
 					}
 				}
 			case BT_Cab:
-				if (globalQueue.Cab[myId][floor][myId] == Confirmed) && !thisElevator.Requests[floor][btn] {
+				if (globalQueue.Cab[myId][floor][myId] == Confirmed) && !thisElevator.Requests[floor][btn] && thisElevator.Floor == floor {
 					fmt.Println("Trying to complete")
 					completed = globalQueue.CompleteMyOrder(ButtonEvent{Floor: floor, Button: ButtonType(btn)}, *globalElevatorStates, myId)
 					// Added

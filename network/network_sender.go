@@ -1,6 +1,7 @@
 package network
 
 import (
+	. "distributed_elevator/elevio"
 	. "distributed_elevator/global_state_manager/elevator_states"
 	. "distributed_elevator/global_state_manager/order_queue"
 	. "distributed_elevator/network/message"
@@ -25,6 +26,18 @@ func (sender *NetworkSender) networkSenderInit() {
 
 	sender.DestPort = "20003"
 	sender.DestIP = "255.255.255.255"
+
+	for floor := 0; floor < N_FLOORS; floor++ {
+		for btn := 0; btn < HallButtonsPerFloor; btn++ {
+			sender.HallOrders[floor][btn] = HallOrder{
+				State:      None,
+				AssignedTo: NoElevatorAssigned,
+			}
+		}
+		for elevatorID := 0; elevatorID < N_ELEVATORS; elevatorID++ {
+			sender.CabOrders[floor][elevatorID] = None
+		}
+	}
 
 	sender.DestAddr, err = net.ResolveUDPAddr("udp4", sender.DestIP+":"+sender.DestPort)
 	if err != nil { // ADD ERROR HANDLING
