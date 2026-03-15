@@ -69,7 +69,7 @@ func (elevatorTimers *elevatorTimers) lostConnectionToElevator() int {
 }
 
 func amIStuck(supervisor supervisor) bool {
-	if supervisor.movingTimer.active && time.Since(supervisor.movingTimer.startTime) > 5*time.Second {
+	if supervisor.movingTimer.active && time.Since(supervisor.movingTimer.startTime) > 5*time.Second { // !!! Spec / FAT says 4 seconds
 		return true
 	}
 	return false

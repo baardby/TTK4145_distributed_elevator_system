@@ -90,6 +90,7 @@ func handleThisElevatorUpdate( // Return false if order could not complete, true
 	fmt.Println("Handling Update Elevator Event") // TODO: Remove after testing
 
 	completed := true
+	*prevMyElevatorQueue = thisElevator.Requests
 	for floor := 0; floor < N_FLOORS; floor++ {
 		for btn := 0; btn < N_BUTTONS; btn++ {
 			/*

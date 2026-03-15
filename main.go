@@ -28,7 +28,7 @@ func main() {
 
 	fmt.Println("Starting elevator with ID:", ID)
 
-	Init("localhost:15657", N_FLOORS)
+	Init("localhost:15656", N_FLOORS)
 
 	// Creating communication channels
 	newButtonEvent := make(chan ButtonEvent)
