@@ -38,8 +38,6 @@ type supervisor struct {
 	recoveryFromMovingStuck bool
 	recoveryPrevFloor       int
 	lastFloor               int
-	obstructed              bool
-	doorOpen                bool
 }
 
 func initSupervisor() supervisor {
