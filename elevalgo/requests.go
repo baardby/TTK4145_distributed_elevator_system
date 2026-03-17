@@ -88,20 +88,20 @@ func Requests_ClearAtCurrentFloor(e Elevator) Elevator {
 	e.Requests[e.Floor][BT_Cab] = false
 	switch e.Direction {
 	case MD_Up:
-		//if requests_above(e) == false && e.Requests[e.Floor][BT_HallUp] == false {
-		//	e.Requests[e.Floor][BT_HallDown] = false
-		//}
-		if requests_above(e) == false {
+		if requests_above(e) == false && e.Requests[e.Floor][BT_HallUp] == false {
 			e.Requests[e.Floor][BT_HallDown] = false
 		}
+		//if requests_above(e) == false {
+		//	e.Requests[e.Floor][BT_HallDown] = false
+		//}
 		e.Requests[e.Floor][BT_HallUp] = false
 	case MD_Down:
-		//if requests_below(e) == false && e.Requests[e.Floor][BT_HallDown] == false {
-		//	e.Requests[e.Floor][BT_HallUp] = false
-		//}
-		if requests_below(e) == false {
+		if requests_below(e) == false && e.Requests[e.Floor][BT_HallDown] == false {
 			e.Requests[e.Floor][BT_HallUp] = false
 		}
+		//if requests_below(e) == false {
+		//	e.Requests[e.Floor][BT_HallUp] = false
+		//}
 		e.Requests[e.Floor][BT_HallDown] = false
 	case MD_Stop:
 		e.Requests[e.Floor][BT_HallUp] = false
