@@ -1,4 +1,5 @@
 package cost_fns
+// TODO: Delete this after testing
 
 /*
 import (

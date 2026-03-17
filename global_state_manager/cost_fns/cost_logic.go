@@ -23,7 +23,8 @@ type HRAInput struct {
 	States       map[string]HRAElevState `json:"states"`
 }
 
-func AssignNewOrder(newOrder ButtonEvent, elevatorStates ElevatorStates, cabOrders AllCabOrders, myID int) (IDAssigned int) { // Needs to take in elevator states
+func AssignNewOrder(newOrder ButtonEvent, elevatorStates ElevatorStates, cabOrders AllCabOrders, myID int) (IDAssigned int) {
+	IDAssigned = 0
 	switch newOrder.Button {
 	// If it is a CAB order, this elevator should do it.
 	case BT_Cab:
@@ -171,7 +172,6 @@ func TestCostLogic() {
 		Floor:  1,
 		Button: ButtonType(1),
 	}
-
 	fmt.Println(AssignNewOrder(newButtonEvent, elevatorStates, cabOrders, myId))
 
 	newButtonEvent = ButtonEvent{

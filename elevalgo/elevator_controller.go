@@ -10,26 +10,25 @@ func Elevalgo_ElevatorControllerLoop(updateQueueEvent <-chan [N_FLOORS][N_BUTTON
 	newFloorEvent <-chan int,
 	stopEvent <-chan bool,
 	obstrEvent <-chan bool,
-	buttonPressEvent <-chan ButtonEvent, // FOR TESTING WITH SINGLE ELEVATOR
+	buttonPressEvent <-chan ButtonEvent, // FOR TESTING WITH SINGLE ELEVATOR. TODO: Remove after testing
 	stateToGSM chan Elevator,
 	stateToSupervisor chan Elevator) {
 
 	var elevator Elevator = Elevator_Uninitialized()
 
-	select { // TODO: Test this with the physical elevator
+	select {
 	// If a new floor can be received, the elevator is not between floors. Do nothing
 	case startFloor := <-newFloorEvent:
 		Fsm_OnFloorArrival(&elevator, startFloor)
 
 	// If a new floor can't be received, the elevator is between floors. Go down
 	default:
-		Fsm_OnInitBetweenFloors(&elevator) // TODO: Press a button when starting between floors. request_here() will probably make this fail and crash
-		// Possible solution: Refuse to service orders until the elevator receives a new floor using the newFloorChannel to block.
+		Fsm_OnInitBetweenFloors(&elevator)
 		startFloor := <-newFloorEvent
 		Fsm_OnFloorArrival(&elevator, startFloor)
 	}
 
-	updateElevatorTicker := time.NewTicker(100 * time.Millisecond) // TODO: CHANGE TO 10Hz?
+	updateElevatorTicker := time.NewTicker(100 * time.Millisecond)
 	defer updateElevatorTicker.Stop()
 
 	for {
@@ -44,13 +43,15 @@ func Elevalgo_ElevatorControllerLoop(updateQueueEvent <-chan [N_FLOORS][N_BUTTON
 					}
 				}
 			}
-			// Set lights accordingly to this new queue
 		case newFloor := <-newFloorEvent:
 			Fsm_OnFloorArrival(&elevator, newFloor)
-		//case newButton := <-buttonPressEvent:
+
+		//case newButton := <-buttonPressEvent: // FOR TESTING WITH SINGLE ELEVATOR. TODO: Remove after testing
 		//	Fsm_OnRequestButtonPress(&elevator, newButton.Floor, newButton.Button)
-		case stopButtonState := <-stopEvent:
-			SetStopLamp(stopButtonState) // CAN REMOVE
+
+		case stopButtonState := <-stopEvent: // TODO: Double check if we need to implement something more complex for the stop button
+			SetStopLamp(stopButtonState)
+
 		case currentObstrState := <-obstrEvent:
 			elevator.SetObstr(currentObstrState)
 
@@ -58,11 +59,13 @@ func Elevalgo_ElevatorControllerLoop(updateQueueEvent <-chan [N_FLOORS][N_BUTTON
 			if !currentObstrState {
 				Timer_Start(elevator.Config.DoorOpenDuration_s)
 			}
+
 		case <-updateElevatorTicker.C:
 			select {
 			// Try send new update
 			case stateToGSM <- elevator:
-			// Dump the channel if the old message wasn't received
+
+			// Empty the channel if the old message wasn't received and send new update
 			default:
 				<-stateToGSM
 				stateToGSM <- elevator
@@ -71,7 +74,8 @@ func Elevalgo_ElevatorControllerLoop(updateQueueEvent <-chan [N_FLOORS][N_BUTTON
 			select {
 			// Try send new update
 			case stateToSupervisor <- elevator:
-			// Dump the channel if the old message wasn't received
+
+			// Empty the channel if the old message wasn't received and send new update
 			default:
 				<-stateToSupervisor
 				stateToSupervisor <- elevator
@@ -82,6 +86,7 @@ func Elevalgo_ElevatorControllerLoop(updateQueueEvent <-chan [N_FLOORS][N_BUTTON
 				fmt.Printf("%6v :  %+v\n", k, v)
 			}
 			// END OF TODO
+
 		default:
 			if Timer_TimedOut() {
 				Timer_Stop()
@@ -90,57 +95,3 @@ func Elevalgo_ElevatorControllerLoop(updateQueueEvent <-chan [N_FLOORS][N_BUTTON
 		}
 	}
 }
-
-// Elevio and Elevalgo as one goroutine REMOVE ONLY IF WE KNOW ABOVE WORKS
-/*
-func Elevalgo_ElevatorControllerLoop(updateQueueCh <-chan [N_FLOORS][N_BUTTONS]bool, newButtonPress chan<- [2]int) {
-	var elevator Elevator = Elevator_Uninitialized()
-	var inputPollRate_ms int = 25
-
-	// con_load
-
-	if Elevator_FloorSensor() == -1 {
-		Fsm_OnInitBetweenFloors(&elevator)
-	}
-	prevFloor := -1
-	var prevOrder [N_FLOORS][N_BUTTONS]bool
-
-	for {
-		select {
-		case newRequests := <-updateQueueCh:
-			for floor := 0; floor < N_FLOORS; floor++ {
-				for btn := 0; btn < N_BUTTONS; btn++ {
-					elevator.Requests[floor][btn] = newRequests[floor][btn]
-				}
-			}
-		default:
-			// Request button
-			for floor := 0; floor < N_FLOORS; floor++ {
-				for btn := 0; btn < N_BUTTONS; btn++ {
-					value := Elevator_RequestButton(floor, ButtonType(btn))
-					if value && value != prevOrder[floor][btn] {
-						Fsm_OnRequestButtonPress(&elevator, floor, ButtonType(btn))
-						// ADD A CHANNEL THAT SENDS NEW ORDER TO REQUEST QUEUE. MAYBE INSIDE Fsm_OnRequestButtonPress(&elevator, floor, ButtonType(btn))
-					}
-					prevOrder[floor][btn] = value
-				}
-			}
-
-			// Floor sensor
-			floor := Elevator_FloorSensor()
-			if floor != -1 && floor != prevFloor {
-				Fsm_OnFloorArrival(&elevator, floor)
-			}
-			prevFloor = floor
-
-			// Timer
-			if Timer_TimedOut() {
-				Timer_Stop()
-				Fsm_OnDoorTimeout(&elevator)
-			}
-
-			time.Sleep(time.Duration(inputPollRate_ms) * time.Millisecond)
-		}
-	}
-}
-*/

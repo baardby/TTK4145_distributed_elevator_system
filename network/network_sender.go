@@ -15,10 +15,61 @@ type NetworkSender struct {
 	DestIP     string
 	DestPort   string
 	DestAddr   *net.UDPAddr
-	MyConn     *net.UDPConn // Remember to add defer myConn.Close() in the loop the sender is run
+	MyConn     *net.UDPConn
 	MyElevator ElevatorPeer
 	HallOrders AllHallOrders
 	CabOrders  AllCabOrders
+}
+
+type BackupConn stuct {
+	Addr *net.UDPAddr
+	Conn *net.UDPConn
+}
+
+func Network_SenderLoop(myID int,
+	updateElevatorStateEvent <-chan ElevatorPeer,
+	updateOrderQueueEvent <-chan OrderQueue,
+	heartBeatPing <-chan int) {
+
+	var sender NetworkSender
+	sender.networkSenderInit()
+	defer sender.MyConn.Close()
+
+	backupConn := initializeBackupConn("30000")
+	defer backupConn.Conn.Close()
+
+	var msgToSend Message
+	msgToSend.ID = myID
+	msgToSend.NetworkCode = NETWORK_CODE
+	msgToSend.UpdateMessage(sender.MyElevator, sender.HallOrders, sender.CabOrders)
+
+	time.Sleep(200 * time.Millisecond) // Sleep to let other goroutines begin
+
+	// Setting up periodic sending
+	sendTicker := time.NewTicker(100 * time.Millisecond)
+	defer sendTicker.Stop()
+
+	for {
+		select {
+		case newElevator := <-updateElevatorStateEvent:
+			sender.updateMyElevator(newElevator)
+
+			msgToSend.UpdateMessage(sender.MyElevator, sender.HallOrders, sender.CabOrders)
+
+		case newOrderQueue := <-updateOrderQueueEvent:
+			sender.updateHallOrderQueue(newOrderQueue.Hall[myID])
+			sender.updateCabOrderQueue(newOrderQueue.Cab[myID])
+
+			msgToSend.UpdateMessage(sender.MyElevator, sender.HallOrders, sender.CabOrders)
+
+		case heartBeat := <-heartBeatPing:
+			sendHeartBeat(heartBeat, &backupConn)
+
+		case <-sendTicker.C:
+			sender.broadcastOnNetwork(msgToSend)
+
+		}
+	}
 }
 
 func (sender *NetworkSender) networkSenderInit() {
@@ -71,45 +122,30 @@ func (sender *NetworkSender) updateCabOrderQueue(newCabOrderQueue AllCabOrders) 
 	sender.CabOrders = newCabOrderQueue
 }
 
-func Network_SenderLoop(myID int,
-	updateElevatorStateEvent <-chan ElevatorPeer,
-	updateOrderQueueEvent <-chan OrderQueue,
-	heartBeatPing <-chan int) {
+func initializeBackupConn(port string) BackupConn {
+	var backupConn BackupConn
+	var err error
 
-	var sender NetworkSender
-	sender.networkSenderInit()
-	defer sender.MyConn.Close()
-
-	var msgToSend Message
-	msgToSend.ID = myID
-	msgToSend.NetworkCode = NETWORK_CODE
-	msgToSend.UpdateMessage(sender.MyElevator, sender.HallOrders, sender.CabOrders)
-
-	time.Sleep(200 * time.Millisecond) // Sleep to let other goroutines begin
-
-	// Setting up periodic sending
-	sendTicker := time.NewTicker(100 * time.Millisecond) // TODO: Change to 10Hz
-	defer sendTicker.Stop()
-
-	for {
-		select {
-		case newElevator := <-updateElevatorStateEvent:
-			sender.updateMyElevator(newElevator)
-
-			msgToSend.UpdateMessage(sender.MyElevator, sender.HallOrders, sender.CabOrders)
-
-		case newOrderQueue := <-updateOrderQueueEvent:
-			sender.updateHallOrderQueue(newOrderQueue.Hall[myID])
-			sender.updateCabOrderQueue(newOrderQueue.Cab[myID])
-
-			msgToSend.UpdateMessage(sender.MyElevator, sender.HallOrders, sender.CabOrders)
-
-		case heartBeat := <-heartBeatPing:
-			//Send til myID (fra heartBeat) på udpPort localhost:30000
-
-		case <-sendTicker.C:
-			sender.broadcastOnNetwork(msgToSend)
-
-		}
+	backupConn.Addr, err = net.ResolveUDPAddr("udp4", "localhost:"+port)
+	if err != nil { // ADD ERROR HANDLING
+		log.Fatalf("Could not resolve address: %v", err)
 	}
+
+	backupConn.Conn, err = net.ListenUDP("udp4", nil)
+	if err != nil { // ADD ERROR HANDLING
+		log.Fatalf("Error dialing: %v", err)
+	}
+
+	return backupConn
+}
+
+func sendHeartBeat(myId int, backupConn *BackupConn) error {
+	heartBeatMsg := []byte{byte(myId)}
+
+	_, err := backupConn.Conn.WriteToUDP(heartBeatMsg, backupConn.Addr)
+	if err != nil { // ADD ERROR HANDLING
+		fmt.Println("Error sending heartbeat:", err)
+	}
+
+	return err
 }
