@@ -18,6 +18,7 @@ func main() {
 
 	// Initializing Elevator ID
 	idFlag := flag.Int("id", -1, "elevator ID (0..N_ELEVATORS-1)")
+	pidFlag := flag.Int("pid", -1, "PID of primary process")
 	flag.Parse()
 
 	if *idFlag < 0 || *idFlag > N_ELEVATORS-1 {
@@ -25,10 +26,13 @@ func main() {
 		os.Exit(2)
 	}
 	ID := *idFlag
+	primaryPID := *pidFlag
 
 	fmt.Println("Starting elevator with ID:", ID)
 
 	Init("localhost:15656", N_FLOORS)
+
+	backupPhase(ID, primaryPID)
 
 	// Creating communication channels
 	newButtonEvent := make(chan ButtonEvent)

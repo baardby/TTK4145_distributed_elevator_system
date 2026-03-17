@@ -5,11 +5,10 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"strconv"
 	"time"
 )
 
-func backupPhase() {
+func backupPhase(myId int, primaryPID int) {
 
 	//Set up UDP connection
 	localHostID := "127.0.0.1"
@@ -42,17 +41,9 @@ func backupPhase() {
 	connListen.Close()
 
 	// Drepe den første prosessen
-	var primaryPID int
-	if len(os.Args) > 1 {
-		pidStr := os.Args[1]
-		pid, err := strconv.Atoi(pidStr)
-		if err == nil {
-			primaryPID = pid
-		}
-	}
-	proc, err := os.FindProcess(primaryPID)
-	if err == nil {
-		proc.Kill()
+	if primaryPID > 0 && primaryPID != os.Getpid() {
+		proc, _ := os.FindProcess(primaryPID)
+		_ = proc.Kill()
 	}
 
 	// starte en ny terminal med en ny prosess
@@ -67,7 +58,7 @@ func backupPhase() {
 		"--",
 		"bash",
 		"-c",
-		fmt.Sprintf("cd %s && go run main.go %d; exec bash", path, pid),
+		fmt.Sprintf("cd %s && go run main.go --id %d --pid %d; exec bash", path, myId, pid),
 	)
 	err = cmd.Start()
 	if err != nil {
