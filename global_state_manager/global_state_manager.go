@@ -165,7 +165,8 @@ func Global_State_Manager(
 	buttonEventChan <-chan ButtonEvent,
 	myOrderListChan chan<- [N_FLOORS][N_BUTTONS]bool,
 	updateElevatorStateEvent chan<- ElevatorPeer,
-	updateOrderQueueEvent chan<- OrderQueue) {
+	updateOrderQueueEvent chan<- OrderQueue,
+	heartBeatPing chan<- int) {
 
 	// !!! er der her man skal ha backupPhase() og listen for other queuepahse()?
 
@@ -176,6 +177,9 @@ func Global_State_Manager(
 
 	updateOrderListTicker := time.NewTicker(100 * time.Millisecond) // TODO: Change to 10Hz
 	defer updateOrderListTicker.Stop()
+
+	heartBeatTicker := time.NewTicker(500 * time.Millisecond)
+	defer heartBeatTicker.Stop()
 
 	for {
 		select {
@@ -206,6 +210,9 @@ func Global_State_Manager(
 			globalQueue.TransitionAllHallOrders(myId, globalElevatorStates)
 			handleHallLights(&globalQueue, myId)
 			myOrderListChan <- globalQueue.RetrieveMyOrders(myId)
+
+		case <-heartBeatTicker.C:
+			heartBeatPing <- myId
 		}
 	}
 }

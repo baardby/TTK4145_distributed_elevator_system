@@ -73,7 +73,8 @@ func (sender *NetworkSender) updateCabOrderQueue(newCabOrderQueue AllCabOrders) 
 
 func Network_SenderLoop(myID int,
 	updateElevatorStateEvent <-chan ElevatorPeer,
-	updateOrderQueueEvent <-chan OrderQueue) {
+	updateOrderQueueEvent <-chan OrderQueue,
+	heartBeatPing <-chan int) {
 
 	var sender NetworkSender
 	sender.networkSenderInit()
@@ -103,8 +104,12 @@ func Network_SenderLoop(myID int,
 
 			msgToSend.UpdateMessage(sender.MyElevator, sender.HallOrders, sender.CabOrders)
 
+		case heartBeat := <-heartBeatPing:
+			//Send til myID (fra heartBeat) på udpPort localhost:30000
+
 		case <-sendTicker.C:
 			sender.broadcastOnNetwork(msgToSend)
+
 		}
 	}
 }

@@ -32,7 +32,7 @@ func main() {
 
 	Init("localhost:15656", N_FLOORS)
 
-	backupPhase(ID, primaryPID)
+	BackupPhase(ID, primaryPID)
 
 	// Creating communication channels
 	newButtonEvent := make(chan ButtonEvent)
@@ -46,6 +46,7 @@ func main() {
 	receivedMessageEvent := make(chan Message)
 	newElevStateToSendEvent := make(chan ElevatorPeer)
 	newOrderQueueToSendEvent := make(chan OrderQueue)
+	heartBeatPing := make(chan int)
 
 	updateQueueEvent := make(chan [N_FLOORS][N_BUTTONS]bool)
 
@@ -72,9 +73,11 @@ func main() {
 	go Network_ListenerLoop(ID,
 		receivedFromPeerEvent,
 		receivedMessageEvent)
+
 	go Network_SenderLoop(ID,
 		newElevStateToSendEvent,
-		newOrderQueueToSendEvent)
+		newOrderQueueToSendEvent,
+		heartBeatPing)
 
 	// GSM goroutines
 	go Global_State_Manager(ID,
@@ -84,7 +87,8 @@ func main() {
 		newButtonEvent,
 		updateQueueEvent,
 		newElevStateToSendEvent,
-		newOrderQueueToSendEvent)
+		newOrderQueueToSendEvent,
+		heartBeatPing)
 
 	// Supervisor goroutines
 	go Supervisor(receivedFromPeerEvent,

@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func backupPhase(myId int, primaryPID int) {
+func BackupPhase(myId int, primaryPID int) {
 
 	//Set up UDP connection
 	localHostID := "127.0.0.1"
