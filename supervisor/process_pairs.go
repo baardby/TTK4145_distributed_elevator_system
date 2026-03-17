@@ -24,9 +24,15 @@ func BackupPhase(myId int, primaryPID int) {
 	defer connListen.Close()
 
 	//Set up some kind of way to store checkpoint
-	buffer := make([]byte, 1024)
+	buffer := make([]byte, 1)
+
+	lastSeenMyID := time.Now()
 
 	for { // Først lytte
+		if time.Since(lastSeenMyID) > 2*time.Second {
+			fmt.Println("Timeout - ingen melding fra riktig ID på 2 sekunder")
+			break
+		}
 		connListen.SetReadDeadline(time.Now().Add(2 * time.Second))
 		_, _, err := connListen.ReadFromUDP(buffer)
 		if err != nil {
@@ -37,6 +43,12 @@ func BackupPhase(myId int, primaryPID int) {
 				fmt.Println("Annen feil:", err)
 			}
 		}
+		msgID := int(buffer[0])
+
+		if msgID == myId {
+			lastSeenMyID = time.Now()
+		}
+
 	}
 	connListen.Close()
 
