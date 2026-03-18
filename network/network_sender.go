@@ -36,7 +36,7 @@ func NetworkSender(myID int,
 	sender.networkSenderInit()
 	defer sender.myConn.Close()
 
-	backup := initializeBackupConn("30000")
+	backup := initializeBackupConn("30019")
 	defer backup.conn.Close()
 
 	var msgToSend Message

@@ -8,7 +8,6 @@ import (
 	. "distributed_elevator/global_state_manager/order_queue"
 	. "distributed_elevator/network/message"
 	. "distributed_elevator/supervisor"
-	"fmt"
 	"time"
 )
 
@@ -110,29 +109,11 @@ func handleReceivedMessage(
 
 	handleHallLights(myID, globalQueue)
 
-	fmt.Println("Old peer: ", oldPeer.WorkingStatus)
-	fmt.Println("New peer: ", receivedMessage.Peer.WorkingStatus)
-
-	//needRedistribute := (fromOkToHardwareFault(receivedMessage.Peer, oldPeer) || fromLostConnectionToHardwareFault(receivedMessage.Peer, oldPeer))
 	needRedistribute := oldPeer.WorkingStatus != receivedMessage.Peer.WorkingStatus
 	if needRedistribute && lowestIDOnNetwork(*globalElevatorStates) == myID {
 		globalQueue.RedistributeHallOrders(myID, *globalElevatorStates, AssignNewOrder)
 	}
 
-}
-
-func fromOkToHardwareFault(newPeer ElevatorPeer, oldPeer ElevatorPeer) bool {
-	if oldPeer.WorkingStatus == StatusOK && newPeer.WorkingStatus == StatusHardwareFault {
-		return true
-	}
-	return false
-}
-
-func fromLostConnectionToHardwareFault(newPeer ElevatorPeer, oldPeer ElevatorPeer) bool {
-	if oldPeer.WorkingStatus == StatusLostConnection && newPeer.WorkingStatus == StatusHardwareFault {
-		return true
-	}
-	return false
 }
 
 func lowestIDOnNetwork(globalElevatorStates ElevatorStates) int {

@@ -12,7 +12,7 @@ func BackupPhase(myID int, primaryPID int) {
 
 	//Set up UDP connection
 	localHostID := "127.0.0.1"
-	localHostPort := 30000
+	localHostPort := 30019
 	localHostAddr := &net.UDPAddr{
 		IP:   net.ParseIP(localHostID),
 		Port: localHostPort,
