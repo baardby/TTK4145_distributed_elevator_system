@@ -15,10 +15,10 @@ type Message struct {
 	CabOrders   AllCabOrders
 }
 
-func ReconstructMessageFromSlice(msgBuffer []byte, msgSize int) (recvMsg Message, deconstructErr error) {
-	deconstructErr = json.Unmarshal(msgBuffer[:msgSize], &recvMsg)
-	if deconstructErr != nil {
-		fmt.Println("unmarshal error:", deconstructErr)
+func ReconstructMessageFromSlice(msgBuffer []byte, msgSize int) (recvMsg Message, reconstructErr error) {
+	reconstructErr = json.Unmarshal(msgBuffer[:msgSize], &recvMsg)
+	if reconstructErr != nil {
+		fmt.Println("unmarshal error:", reconstructErr)
 	}
 
 	return

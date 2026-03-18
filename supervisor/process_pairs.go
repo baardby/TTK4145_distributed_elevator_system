@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func BackupPhase(myId int, primaryPID int) {
+func BackupPhase(myID int, primaryPID int) {
 
 	//Set up UDP connection
 	localHostID := "127.0.0.1"
@@ -23,12 +23,11 @@ func BackupPhase(myId int, primaryPID int) {
 	}
 	defer connListen.Close()
 
-	//Set up some kind of way to store checkpoint
 	buffer := make([]byte, 1)
 
 	lastSeenMyID := time.Now()
 
-	for { // Først lytte
+	for { // First listen
 		if time.Since(lastSeenMyID) > 2*time.Second {
 			fmt.Println("Timeout - ingen melding fra riktig ID på 2 sekunder")
 			break
@@ -45,20 +44,20 @@ func BackupPhase(myId int, primaryPID int) {
 		}
 		msgID := int(buffer[0])
 
-		if msgID == myId {
+		if msgID == myID {
 			lastSeenMyID = time.Now()
 		}
 
 	}
 	connListen.Close()
 
-	// Drepe den første prosessen
+	// Kill primary process if it is still running
 	if primaryPID > 0 && primaryPID != os.Getpid() {
 		proc, _ := os.FindProcess(primaryPID)
 		_ = proc.Kill()
 	}
 
-	// starte en ny terminal med en ny prosess
+	// Start a new terminal with a new instance of the elevator process
 	pid := os.Getpid()
 	path, err := os.Getwd()
 	if err != nil {
@@ -70,7 +69,7 @@ func BackupPhase(myId int, primaryPID int) {
 		"--",
 		"bash",
 		"-c",
-		fmt.Sprintf("cd %s && go run main.go --id %d --pid %d; exec bash", path, myId, pid),
+		fmt.Sprintf("cd %s && go run main.go --id %d --pid %d; exec bash", path, myID, pid),
 	)
 	err = cmd.Start()
 	if err != nil {

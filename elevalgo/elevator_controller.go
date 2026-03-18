@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func Elevalgo_ElevatorControllerLoop(updateQueueEvent <-chan [N_FLOORS][N_BUTTONS]bool,
+func ElevatorController(updateMyQueue <-chan [N_FLOORS][N_BUTTONS]bool,
 	newFloorEvent <-chan int,
 	stopEvent <-chan bool,
 	obstrEvent <-chan bool,
@@ -33,9 +33,11 @@ func Elevalgo_ElevatorControllerLoop(updateQueueEvent <-chan [N_FLOORS][N_BUTTON
 
 	for {
 		select {
-		case newRequests := <-updateQueueEvent:
+		case newRequests := <-updateMyQueue:
 			for floor := 0; floor < N_FLOORS; floor++ {
 				for btn := 0; btn < N_BUTTONS; btn++ {
+					// Treat new request as button press if it is a new request.
+					// Otherwise, just update the request state in the elevator struct
 					if (elevator.Requests[floor][btn] != newRequests[floor][btn]) && newRequests[floor][btn] {
 						Fsm_OnRequestButtonPress(&elevator, floor, ButtonType(btn))
 					} else {
@@ -43,6 +45,7 @@ func Elevalgo_ElevatorControllerLoop(updateQueueEvent <-chan [N_FLOORS][N_BUTTON
 					}
 				}
 			}
+
 		case newFloor := <-newFloorEvent:
 			Fsm_OnFloorArrival(&elevator, newFloor)
 

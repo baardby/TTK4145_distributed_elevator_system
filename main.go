@@ -25,30 +25,31 @@ func main() {
 		fmt.Fprintf(os.Stderr, "error: --id must be in range 0..%d\n", N_ELEVATORS-1)
 		os.Exit(2)
 	}
-	ID := *idFlag
+	myID := *idFlag
 	primaryPID := *pidFlag
 
-	fmt.Println("Starting elevator with ID:", ID)
+	fmt.Println("Starting elevator with ID:", myID)
 
 	Init("localhost:15656", N_FLOORS)
 
-	BackupPhase(ID, primaryPID)
+	BackupPhase(myID, primaryPID)
 
 	// Creating communication channels
 	newButtonEvent := make(chan ButtonEvent)
 	newFloorEvent := make(chan int)
 	stopEvent := make(chan bool)
 	obstrEvent := make(chan bool)
+
 	stateToGSM := make(chan Elevator, 1)
 	stateToSupervisor := make(chan Elevator, 1)
 
-	receivedFromPeerEvent := make(chan int)
-	receivedMessageEvent := make(chan Message)
-	newElevStateToSendEvent := make(chan ElevatorPeer)
-	newOrderQueueToSendEvent := make(chan OrderQueue)
+	peerAlive := make(chan int)
+	receivedMessage := make(chan Message)
+	newElevStateToSend := make(chan ElevatorPeer)
+	newOrderQueueToSend := make(chan OrderQueue)
 	heartBeatPing := make(chan int)
 
-	updateQueueEvent := make(chan [N_FLOORS][N_BUTTONS]bool)
+	updateMyQueue := make(chan [N_FLOORS][N_BUTTONS]bool)
 
 	supervisorEvent := make(chan SupervisorEvent)
 
@@ -61,7 +62,7 @@ func main() {
 	go PollStopButton(stopEvent)
 
 	// Elevator algorithm goroutines
-	go Elevalgo_ElevatorControllerLoop(updateQueueEvent,
+	go ElevatorController(updateMyQueue,
 		newFloorEvent,
 		stopEvent,
 		obstrEvent,
@@ -70,28 +71,28 @@ func main() {
 		stateToSupervisor)
 
 	// Network goroutines
-	go Network_ListenerLoop(ID,
-		receivedFromPeerEvent,
-		receivedMessageEvent)
+	go NetworkListener(myID,
+		peerAlive,
+		receivedMessage)
 
-	go Network_SenderLoop(ID,
-		newElevStateToSendEvent,
-		newOrderQueueToSendEvent,
+	go NetworkSender(myID,
+		newElevStateToSend,
+		newOrderQueueToSend,
 		heartBeatPing)
 
 	// GSM goroutines
-	go Global_State_Manager(ID,
+	go Global_State_Manager(myID,
 		supervisorEvent,
-		receivedMessageEvent,
+		receivedMessage,
 		stateToGSM,
 		newButtonEvent,
-		updateQueueEvent,
-		newElevStateToSendEvent,
-		newOrderQueueToSendEvent,
+		updateMyQueue,
+		newElevStateToSend,
+		newOrderQueueToSend,
 		heartBeatPing)
 
 	// Supervisor goroutines
-	go Supervisor(receivedFromPeerEvent,
+	go Supervisor(peerAlive,
 		stateToSupervisor,
 		supervisorEvent)
 

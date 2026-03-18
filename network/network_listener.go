@@ -11,23 +11,23 @@ import (
 
 const NETWORK_CODE = "gruppe2"
 
-type NetworkListener struct {
-	MyPort      string
-	MyIP        string // FOR TESTING. TODO: Remove after testing
-	MyConn      *net.UDPConn
-	ListOfPeers map[string]int // FOR TESTING. TODO: Remove after testing
+type networkListener struct {
+	myPort      string
+	myIP        string // FOR TESTING. TODO: Remove after testing
+	myConn      *net.UDPConn
+	listOfPeers map[string]int // FOR TESTING. TODO: Remove after testing
 }
 
-func Network_ListenerLoop(myID int,
-	receivedFromPeerEvent chan<- int,
-	receivedMessageEvent chan<- Message) {
-	
-	var listener NetworkListener
+func NetworkListener(myID int,
+	peerAlive chan<- int,
+	receivedMessage chan<- Message) {
+
+	var listener networkListener
 	listener.networkListenerInit()
-	defer listener.MyConn.Close()
+	defer listener.myConn.Close()
 
 	var recvMsg Message
-	var deconstructErr error
+	var reconstructErr error
 
 	var recvAddr *net.UDPAddr
 	var msgSize int
@@ -35,61 +35,64 @@ func Network_ListenerLoop(myID int,
 
 	for {
 		recvAddr, recvDecodedMsg, msgSize = listener.readFromNetwork()
-		recvMsg, deconstructErr = ReconstructMessageFromSlice(recvDecodedMsg, msgSize)
+		recvMsg, reconstructErr = ReconstructMessageFromSlice(recvDecodedMsg, msgSize)
 
 		// Filters out messages which doesn't follow the correct format of the network and messages broadcasted to ourselves
-		if (deconstructErr == nil) && (recvMsg.NetworkCode == NETWORK_CODE) && (recvMsg.ID != myID) {
-			
+		if (reconstructErr == nil) && (recvMsg.NetworkCode == NETWORK_CODE) && (recvMsg.ID != myID) {
+
 			// FOR TESTING. TODO: Remove after testing
 			testPrintRecvMsg(&recvMsg)
-			_, isInPeerList := listener.ListOfPeers[recvAddr.IP.String()]
+			_, isInPeerList := listener.listOfPeers[recvAddr.IP.String()]
 			if !isInPeerList {
-				listener.ListOfPeers[recvAddr.IP.String()] = recvMsg.ID
+				listener.listOfPeers[recvAddr.IP.String()] = recvMsg.ID
 			}
 			listener.testPrintPeerList()
 			// END OF TESTING
 
 			// Notify Supervisor of new msg from peer
-			receivedFromPeerEvent <- recvMsg.ID
+			peerAlive <- recvMsg.ID
 
 			// Send message to global state manager
-			receivedMessageEvent <- recvMsg
+			receivedMessage <- recvMsg
 		}
 	}
 }
 
-func (listener *NetworkListener) networkListenerInit() {
+func (listener *networkListener) networkListenerInit() {
 	var err error
 	var myAddr *net.UDPAddr
 
-	listener.ListOfPeers = make(map[string]int)
-
-	listener.MyPort = "20003"
 	// FOR TESTING CONNECTIONS. TODO: Remove after testing
-	listener.MyIP, err = LocalIP()
+	listener.listOfPeers = make(map[string]int)
+	listener.myIP, err = LocalIP()
 	// END OF TESTING
 
+	listener.myPort = "20003"
+
 	// We have to bind to 0.0.0.0 to be able to pickup broadcasts
-	myAddr, err = net.ResolveUDPAddr("udp4", "0.0.0.0"+":"+listener.MyPort)
-	if err != nil { // ADD ERROR HANDLING
+	myAddr, err = net.ResolveUDPAddr("udp4", "0.0.0.0"+":"+listener.myPort)
+	if err != nil {
 		log.Fatalf("Failed to bind UDP socket %v", err)
 	}
 
-	listener.MyConn, err = net.ListenUDP("udp4", myAddr)
-	// ADD ERROR HANDLING
+	listener.myConn, err = net.ListenUDP("udp4", myAddr)
+	if err != nil {
+		log.Fatalf("Failed to bind UDP socket %v", err)
+	}
 }
 
-func (listener *NetworkListener) readFromNetwork() (*net.UDPAddr, []byte, int) {
+func (listener *networkListener) readFromNetwork() (*net.UDPAddr, []byte, int) {
 	decodedMsg := make([]byte, 1024)
 
-	msgSize, recvAddr, readErr := listener.MyConn.ReadFromUDP(decodedMsg)
-	if readErr != nil { // ADD ERROR HANDLING
+	msgSize, recvAddr, readErr := listener.myConn.ReadFromUDP(decodedMsg)
+	if readErr != nil {
 		fmt.Println("Message error:", readErr)
 	}
 
 	return recvAddr, decodedMsg, msgSize
 }
 
+// TODO: Remove testing functions after testing is done
 func testPrintRecvMsg(recvMsg *Message) {
 	fmt.Println("--Received message--")
 	fmt.Println(recvMsg.Peer.WorkingStatus)
@@ -99,9 +102,9 @@ func testPrintRecvMsg(recvMsg *Message) {
 	fmt.Println("--------------------")
 }
 
-func (listener *NetworkListener) testPrintPeerList() {
+func (listener *networkListener) testPrintPeerList() {
 	fmt.Println("----Alive peers----")
-	for key, value := range listener.ListOfPeers {
+	for key, value := range listener.listOfPeers {
 		fmt.Println(key, value)
 	}
 	fmt.Println("-------------------")
