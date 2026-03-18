@@ -19,7 +19,8 @@ func GlobalStateManager(
 	newButtonEvent <-chan ButtonEvent,
 	updateMyQueue chan<- [N_FLOORS][N_BUTTONS]bool,
 	newElevStateToSend chan<- ElevatorPeer,
-	newOrderQueueToSend chan<- OrderQueue,
+	newHallQueueToSend chan<- AllHallOrders,
+	newCabQueueToSend chan<- AllCabOrders,
 	heartBeatPing chan<- int) {
 
 	globalQueue := GenerateNewOrderQueue()
@@ -41,7 +42,8 @@ func GlobalStateManager(
 		case receivedMessage := <-receivedMessage:
 			handleReceivedMessage(myID, receivedMessage, &globalQueue, &globalElevatorStates)
 			updateMyQueue <- globalQueue.RetrieveMyOrders(myID)
-			newOrderQueueToSend <- globalQueue
+			newHallQueueToSend <- globalQueue.Hall[myID]
+			newCabQueueToSend <- globalQueue.Cab[myID]
 
 		case thisElevatorUpdate := <-updateMyElevator:
 			couldCompleteOrder := handleThisElevatorUpdate(myID, thisElevatorUpdate, &globalQueue, &globalElevatorStates, &prevMyElevatorQueue)
@@ -49,12 +51,14 @@ func GlobalStateManager(
 				updateMyQueue <- prevMyElevatorQueue
 			}
 			newElevStateToSend <- globalElevatorStates.Peers[myID]
-			newOrderQueueToSend <- globalQueue
+			newHallQueueToSend <- globalQueue.Hall[myID]
+			newCabQueueToSend <- globalQueue.Cab[myID]
 
 		case buttonEvent := <-newButtonEvent:
 			handleButtonEvent(myID, buttonEvent, &globalQueue, globalElevatorStates)
 			updateMyQueue <- globalQueue.RetrieveMyOrders(myID)
-			newOrderQueueToSend <- globalQueue
+			newHallQueueToSend <- globalQueue.Hall[myID]
+			newCabQueueToSend <- globalQueue.Cab[myID]
 
 		case <-updateOrderListTicker.C:
 			globalQueue.TransitionAllCabOrders(myID, globalElevatorStates)

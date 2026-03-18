@@ -46,7 +46,8 @@ func main() {
 	peerAlive := make(chan int)
 	receivedMessage := make(chan Message)
 	newElevStateToSend := make(chan ElevatorPeer)
-	newOrderQueueToSend := make(chan OrderQueue)
+	newHallQueueToSend := make(chan AllHallOrders)
+	newCabQueueToSend := make(chan AllCabOrders)
 	heartBeatPing := make(chan int)
 
 	updateMyQueue := make(chan [N_FLOORS][N_BUTTONS]bool)
@@ -76,7 +77,8 @@ func main() {
 
 	go NetworkSender(myID,
 		newElevStateToSend,
-		newOrderQueueToSend,
+		newHallQueueToSend,
+		newCabQueueToSend,
 		heartBeatPing)
 
 	// GSM goroutines
@@ -87,7 +89,8 @@ func main() {
 		newButtonEvent,
 		updateMyQueue,
 		newElevStateToSend,
-		newOrderQueueToSend,
+		newHallQueueToSend,
+		newCabQueueToSend,
 		heartBeatPing)
 
 	// Supervisor goroutines

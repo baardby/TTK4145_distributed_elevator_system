@@ -28,7 +28,8 @@ type backupConn struct {
 
 func NetworkSender(myID int,
 	newElevStateToSend <-chan ElevatorPeer,
-	newOrderQueueToSend <-chan OrderQueue,
+	newHallQueueToSend <-chan AllHallOrders,
+	newCabQueueToSend <-chan AllCabOrders,
 	heartBeatPing <-chan int) {
 
 	var sender networkSender
@@ -56,9 +57,13 @@ func NetworkSender(myID int,
 
 			msgToSend.UpdateMessage(sender.myElevator, sender.hallOrders, sender.cabOrders)
 
-		case newOrderQueue := <-newOrderQueueToSend:
-			sender.updateHallOrderQueue(newOrderQueue.Hall[myID])
-			sender.updateCabOrderQueue(newOrderQueue.Cab[myID])
+		case newHallQueue := <-newHallQueueToSend:
+			sender.updateHallOrderQueue(newHallQueue)
+
+			msgToSend.UpdateMessage(sender.myElevator, sender.hallOrders, sender.cabOrders)
+
+		case newCabQueue := <-newCabQueueToSend:
+			sender.updateCabOrderQueue(newCabQueue)
 
 			msgToSend.UpdateMessage(sender.myElevator, sender.hallOrders, sender.cabOrders)
 
