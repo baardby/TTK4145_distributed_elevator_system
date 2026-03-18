@@ -104,22 +104,6 @@ func (elevator *Elevator) SetObstr(currentObstrState bool) {
 	elevator.Obstruction = currentObstrState
 }
 
-func Elevator_FloorSensor() int { // REMOVE
-	return GetFloor()
-}
-
-func Elevator_RequestButton(floor int, btn ButtonType) bool { // REMOVE
-	return GetButton(btn, floor)
-}
-
-func Elevator_StopButton() bool { // REMOVE
-	return GetStop()
-}
-
-func Elevator_Obstruction() bool { // REMOVE
-	return GetObstruction()
-}
-
 func Elevator_FloorIndicator(floor int) {
 	SetFloorIndicator(floor)
 }
