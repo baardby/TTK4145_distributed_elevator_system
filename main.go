@@ -66,7 +66,6 @@ func main() {
 		newFloorEvent,
 		stopEvent,
 		obstrEvent,
-		newButtonEvent,
 		stateToGSM,
 		stateToSupervisor)
 
@@ -95,10 +94,6 @@ func main() {
 	go Supervisor(peerAlive,
 		stateToSupervisor,
 		supervisorEvent)
-
-	// TEST ZONE
-	//TestOrderQueue()
-	//TestCostLogic()
 
 	select {}
 }

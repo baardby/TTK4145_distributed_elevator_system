@@ -2,7 +2,6 @@ package elevalgo
 
 import (
 	. "distributed_elevator/elevio"
-	"fmt"
 )
 
 func fsm_setAllLights(es Elevator) {
@@ -20,8 +19,6 @@ func Fsm_OnInitBetweenFloors(e *Elevator) {
 }
 
 func Fsm_OnRequestButtonPress(e *Elevator, btn_floor int, btn_type ButtonType) {
-	fmt.Printf("\n\nFsm_OnRequestButtonPress(%d, %s)\n", btn_floor, Elevator_ButtonToString(btn_type))
-	e.PrintState()
 
 	switch e.Behaviour {
 	case EB_DoorOpen:
@@ -49,15 +46,9 @@ func Fsm_OnRequestButtonPress(e *Elevator, btn_floor int, btn_type ButtonType) {
 	}
 
 	fsm_setAllLights(*e)
-
-	fmt.Println("\nNew state:")
-	e.PrintState()
 }
 
 func Fsm_OnFloorArrival(e *Elevator, newFloor int) {
-	fmt.Printf("\n\nFsm_OnFloorArrival(%d)\n", newFloor)
-	e.PrintState()
-
 	e.Floor = newFloor
 
 	Elevator_FloorIndicator(e.Floor)
@@ -75,13 +66,9 @@ func Fsm_OnFloorArrival(e *Elevator, newFloor int) {
 	default:
 	}
 
-	fmt.Println("\nNew state:")
-	e.PrintState()
 }
 
 func Fsm_OnDoorTimeout(e *Elevator) {
-	fmt.Printf("\n\nFsm_OnDoorTimeout()\n")
-	e.PrintState()
 
 	switch e.Behaviour {
 	case EB_DoorOpen:
@@ -105,7 +92,4 @@ func Fsm_OnDoorTimeout(e *Elevator) {
 		}
 	default:
 	}
-
-	fmt.Println("\nNew state:")
-	e.PrintState()
 }

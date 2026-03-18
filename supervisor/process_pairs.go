@@ -29,17 +29,17 @@ func BackupPhase(myID int, primaryPID int) {
 
 	for { // First listen
 		if time.Since(lastSeenMyID) > 2*time.Second {
-			fmt.Println("Timeout - ingen melding fra riktig ID på 2 sekunder")
+			fmt.Println("Timeout - no message from myID within 2 seconds")
 			break
 		}
 		connListen.SetReadDeadline(time.Now().Add(2 * time.Second))
 		_, _, err := connListen.ReadFromUDP(buffer)
 		if err != nil {
 			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-				fmt.Println("Timeout - ingen melding på 2 sekunder")
+				fmt.Println("Timeout - no message within 2 seconds")
 				break
 			} else {
-				fmt.Println("Annen feil:", err)
+				fmt.Println("Other error:", err)
 			}
 		}
 		msgID := int(buffer[0])
@@ -61,7 +61,7 @@ func BackupPhase(myID int, primaryPID int) {
 	pid := os.Getpid()
 	path, err := os.Getwd()
 	if err != nil {
-		fmt.Println("Feil ved henting av eksekverbar fil:", err)
+		fmt.Println("Could now fetch path:", err)
 		return
 	}
 	cmd := exec.Command(
@@ -73,6 +73,6 @@ func BackupPhase(myID int, primaryPID int) {
 	)
 	err = cmd.Start()
 	if err != nil {
-		fmt.Println("Feil ved oppstart av ny terminal:", err)
+		fmt.Println("Could not start antother terminal:", err)
 	}
 }

@@ -1,8 +1,6 @@
 package network
 
 import (
-	. "distributed_elevator/elevalgo"
-	. "distributed_elevator/network/localip"
 	. "distributed_elevator/network/message"
 	"fmt"
 	"log"
@@ -12,10 +10,8 @@ import (
 const NETWORK_CODE = "gruppe2"
 
 type networkListener struct {
-	myPort      string
-	myIP        string // FOR TESTING. TODO: Remove after testing
-	myConn      *net.UDPConn
-	listOfPeers map[string]int // FOR TESTING. TODO: Remove after testing
+	myPort string
+	myConn *net.UDPConn
 }
 
 func NetworkListener(myID int,
@@ -29,25 +25,15 @@ func NetworkListener(myID int,
 	var recvMsg Message
 	var reconstructErr error
 
-	var recvAddr *net.UDPAddr
 	var msgSize int
 	recvDecodedMsg := make([]byte, 1024)
 
 	for {
-		recvAddr, recvDecodedMsg, msgSize = listener.readFromNetwork()
+		_, recvDecodedMsg, msgSize = listener.readFromNetwork()
 		recvMsg, reconstructErr = ReconstructMessageFromSlice(recvDecodedMsg, msgSize)
 
 		// Filters out messages which doesn't follow the correct format of the network and messages broadcasted to ourselves
 		if (reconstructErr == nil) && (recvMsg.NetworkCode == NETWORK_CODE) && (recvMsg.ID != myID) {
-
-			// FOR TESTING. TODO: Remove after testing
-			testPrintRecvMsg(&recvMsg)
-			_, isInPeerList := listener.listOfPeers[recvAddr.IP.String()]
-			if !isInPeerList {
-				listener.listOfPeers[recvAddr.IP.String()] = recvMsg.ID
-			}
-			listener.testPrintPeerList()
-			// END OF TESTING
 
 			// Notify Supervisor of new msg from peer
 			peerAlive <- recvMsg.ID
@@ -61,11 +47,6 @@ func NetworkListener(myID int,
 func (listener *networkListener) networkListenerInit() {
 	var err error
 	var myAddr *net.UDPAddr
-
-	// FOR TESTING CONNECTIONS. TODO: Remove after testing
-	listener.listOfPeers = make(map[string]int)
-	listener.myIP, err = LocalIP()
-	// END OF TESTING
 
 	listener.myPort = "20003"
 
@@ -90,22 +71,4 @@ func (listener *networkListener) readFromNetwork() (*net.UDPAddr, []byte, int) {
 	}
 
 	return recvAddr, decodedMsg, msgSize
-}
-
-// TODO: Remove testing functions after testing is done
-func testPrintRecvMsg(recvMsg *Message) {
-	fmt.Println("--Received message--")
-	fmt.Println(recvMsg.Peer.WorkingStatus)
-	fmt.Println(recvMsg.Peer.Floor)
-	fmt.Println(Elevator_BehaviourToString(recvMsg.Peer.Behaviour))
-	fmt.Println(Elevator_MotorDirectionToString(recvMsg.Peer.Direction))
-	fmt.Println("--------------------")
-}
-
-func (listener *networkListener) testPrintPeerList() {
-	fmt.Println("----Alive peers----")
-	for key, value := range listener.listOfPeers {
-		fmt.Println(key, value)
-	}
-	fmt.Println("-------------------")
 }

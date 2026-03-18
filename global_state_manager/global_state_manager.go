@@ -8,7 +8,6 @@ import (
 	. "distributed_elevator/global_state_manager/order_queue"
 	. "distributed_elevator/network/message"
 	. "distributed_elevator/supervisor"
-	"fmt"
 	"time"
 )
 
@@ -106,15 +105,6 @@ func handleReceivedMessage(
 
 	handleHallLights(myID, globalQueue)
 
-	// TODO: Remove this after testing
-	for k, v := range globalQueue.Hall {
-		fmt.Printf("%6v :  %+v\n", k, v)
-	}
-	for k, v := range globalQueue.Cab {
-		fmt.Printf("%6v :  %+v\n", k, v)
-	}
-	// END OF TODO
-
 	needRedistribute := fromOkToHardwareFault(receivedMessage.Peer, oldPeer)
 	if needRedistribute && lowestIDOnNetwork(*globalElevatorStates) == myID {
 		globalQueue.RedistributeHallOrders(myID, *globalElevatorStates, AssignNewOrder)
@@ -144,7 +134,6 @@ func handleThisElevatorUpdate( // Return false if order could not complete, true
 	globalQueue *OrderQueue,
 	globalElevatorStates *ElevatorStates,
 	prevMyElevatorQueue *[N_FLOORS][N_BUTTONS]bool) bool {
-	fmt.Println("Handling Update Elevator Event") // TODO: Remove after testing
 
 	completed := true
 	*prevMyElevatorQueue = thisElevator.Requests

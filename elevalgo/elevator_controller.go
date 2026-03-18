@@ -1,8 +1,7 @@
-package elevalgo //Må endres hvis det puttes inn i en mappe
+package elevalgo
 
 import (
 	. "distributed_elevator/elevio"
-	"fmt"
 	"time"
 )
 
@@ -10,7 +9,6 @@ func ElevatorController(updateMyQueue <-chan [N_FLOORS][N_BUTTONS]bool,
 	newFloorEvent <-chan int,
 	stopEvent <-chan bool,
 	obstrEvent <-chan bool,
-	buttonPressEvent <-chan ButtonEvent, // FOR TESTING WITH SINGLE ELEVATOR. TODO: Remove after testing
 	stateToGSM chan Elevator,
 	stateToSupervisor chan Elevator) {
 
@@ -49,10 +47,7 @@ func ElevatorController(updateMyQueue <-chan [N_FLOORS][N_BUTTONS]bool,
 		case newFloor := <-newFloorEvent:
 			Fsm_OnFloorArrival(&elevator, newFloor)
 
-		//case newButton := <-buttonPressEvent: // FOR TESTING WITH SINGLE ELEVATOR. TODO: Remove after testing
-		//	Fsm_OnRequestButtonPress(&elevator, newButton.Floor, newButton.Button)
-
-		case stopButtonState := <-stopEvent: // TODO: Double check if we need to implement something more complex for the stop button
+		case stopButtonState := <-stopEvent:
 			SetStopLamp(stopButtonState)
 
 		case currentObstrState := <-obstrEvent:
@@ -83,12 +78,6 @@ func ElevatorController(updateMyQueue <-chan [N_FLOORS][N_BUTTONS]bool,
 				<-stateToSupervisor
 				stateToSupervisor <- elevator
 			}
-
-			// TODO: Remove this after testing
-			for k, v := range elevator.Requests {
-				fmt.Printf("%6v :  %+v\n", k, v)
-			}
-			// END OF TODO
 
 		default:
 			if Timer_TimedOut() {
