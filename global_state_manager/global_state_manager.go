@@ -12,42 +12,99 @@ import (
 	"time"
 )
 
+func GlobalStateManager(
+	myID int,
+	supervisorEvent <-chan SupervisorEvent,
+	receivedMessage <-chan Message,
+	updateMyElevator <-chan Elevator,
+	newButtonEvent <-chan ButtonEvent,
+	updateMyQueue chan<- [N_FLOORS][N_BUTTONS]bool,
+	newElevStateToSend chan<- ElevatorPeer,
+	newOrderQueueToSend chan<- OrderQueue,
+	heartBeatPing chan<- int) {
+
+	globalQueue := GenerateNewOrderQueue()
+	globalElevatorStates := GenerateNewElevatorStates(myID)
+	prevMyElevatorQueue := [N_FLOORS][N_BUTTONS]bool{}
+
+	updateOrderListTicker := time.NewTicker(100 * time.Millisecond)
+	defer updateOrderListTicker.Stop()
+
+	heartBeatTicker := time.NewTicker(500 * time.Millisecond)
+	defer heartBeatTicker.Stop()
+
+	for {
+		select {
+		case supervisorEvent := <-supervisorEvent:
+			handleSupervisorEvent(myID, supervisorEvent, &globalQueue, &globalElevatorStates)
+			newElevStateToSend <- globalElevatorStates.Peers[myID]
+
+		case receivedMessage := <-receivedMessage:
+			handleReceivedMessage(myID, receivedMessage, &globalQueue, &globalElevatorStates)
+			updateMyQueue <- globalQueue.RetrieveMyOrders(myID)
+			newOrderQueueToSend <- globalQueue
+
+		case thisElevatorUpdate := <-updateMyElevator:
+			couldCompleteOrder := handleThisElevatorUpdate(myID, thisElevatorUpdate, &globalQueue, &globalElevatorStates, &prevMyElevatorQueue)
+			if !couldCompleteOrder {
+				updateMyQueue <- prevMyElevatorQueue
+			}
+			newElevStateToSend <- globalElevatorStates.Peers[myID]
+			newOrderQueueToSend <- globalQueue
+
+		case buttonEvent := <-newButtonEvent:
+			handleButtonEvent(myID, buttonEvent, &globalQueue, globalElevatorStates)
+			updateMyQueue <- globalQueue.RetrieveMyOrders(myID)
+			newOrderQueueToSend <- globalQueue
+
+		case <-updateOrderListTicker.C:
+			globalQueue.TransitionAllCabOrders(myID, globalElevatorStates)
+			globalQueue.TransitionAllHallOrders(myID, globalElevatorStates)
+			handleHallLights(myID, &globalQueue)
+			updateMyQueue <- globalQueue.RetrieveMyOrders(myID)
+
+		case <-heartBeatTicker.C:
+			heartBeatPing <- myID
+		}
+	}
+}
+
 func handleSupervisorEvent(
+	myID int,
 	supervisorEvent SupervisorEvent,
 	globalQueue *OrderQueue,
-	globalElevatorStates *ElevatorStates,
-	myId int) {
+	globalElevatorStates *ElevatorStates) {
 
 	switch supervisorEvent.Type {
 	case TimerElevatorTimeout:
 		globalElevatorStates.Peers[supervisorEvent.ElevatorID].WorkingStatus = StatusLostConnection
-		if lowestIDOnNetwork(*globalElevatorStates) == myId {
-			globalQueue.RedistributeHallOrders(myId, *globalElevatorStates, AssignNewOrder)
+		if lowestIDOnNetwork(*globalElevatorStates) == myID {
+			globalQueue.RedistributeHallOrders(myID, *globalElevatorStates, AssignNewOrder)
 		}
 	case SupervisorHardwareFault:
-		globalElevatorStates.Peers[myId].WorkingStatus = StatusHardwareFault
-		if lowestIDOnNetwork(*globalElevatorStates) == myId {
-			globalQueue.RedistributeHallOrders(myId, *globalElevatorStates, AssignNewOrder)
+		globalElevatorStates.Peers[myID].WorkingStatus = StatusHardwareFault
+		if lowestIDOnNetwork(*globalElevatorStates) == myID {
+			globalQueue.RedistributeHallOrders(myID, *globalElevatorStates, AssignNewOrder)
 		}
 	case SupervisorHardwareRecovered:
-		globalElevatorStates.Peers[myId].WorkingStatus = StatusOK
+		globalElevatorStates.Peers[myID].WorkingStatus = StatusOK
 	}
 }
 
 func handleReceivedMessage(
+	myID int,
 	receivedMessage Message,
 	globalQueue *OrderQueue,
-	globalElevatorStates *ElevatorStates,
-	myId int) {
+	globalElevatorStates *ElevatorStates) {
 
 	oldPeer := globalElevatorStates.Peers[receivedMessage.Peer.ID]
-	globalElevatorStates.UpdatePeer(receivedMessage.Peer, myId)
+	globalElevatorStates.UpdatePeer(receivedMessage.Peer, myID)
 
 	globalQueue.UpdateOrderQueue(receivedMessage.HallOrders, receivedMessage.CabOrders, receivedMessage.ID)
-	globalQueue.TransitionAllHallOrders(myId, *globalElevatorStates)
-	globalQueue.TransitionAllCabOrders(myId, *globalElevatorStates)
+	globalQueue.TransitionAllHallOrders(myID, *globalElevatorStates)
+	globalQueue.TransitionAllCabOrders(myID, *globalElevatorStates)
 
-	handleHallLights(globalQueue, myId)
+	handleHallLights(myID, globalQueue)
 
 	// TODO: Remove this after testing
 	for k, v := range globalQueue.Hall {
@@ -59,8 +116,8 @@ func handleReceivedMessage(
 	// END OF TODO
 
 	needRedistribute := fromOkToHardwareFault(receivedMessage.Peer, oldPeer)
-	if needRedistribute && lowestIDOnNetwork(*globalElevatorStates) == myId {
-		globalQueue.RedistributeHallOrders(myId, *globalElevatorStates, AssignNewOrder)
+	if needRedistribute && lowestIDOnNetwork(*globalElevatorStates) == myID {
+		globalQueue.RedistributeHallOrders(myID, *globalElevatorStates, AssignNewOrder)
 	}
 
 }
@@ -82,137 +139,56 @@ func lowestIDOnNetwork(globalElevatorStates ElevatorStates) int {
 }
 
 func handleThisElevatorUpdate( // Return false if order could not complete, true otherwise
+	myID int,
 	thisElevator Elevator,
 	globalQueue *OrderQueue,
 	globalElevatorStates *ElevatorStates,
-	prevMyElevatorQueue *[N_FLOORS][N_BUTTONS]bool,
-	myId int) bool {
+	prevMyElevatorQueue *[N_FLOORS][N_BUTTONS]bool) bool {
 	fmt.Println("Handling Update Elevator Event") // TODO: Remove after testing
 
 	completed := true
 	*prevMyElevatorQueue = thisElevator.Requests
-	for floor := 0; floor < N_FLOORS; floor++ {
-		for btn := 0; btn < N_BUTTONS; btn++ {
-			/*
-				if (*prevMyElevatorQueue)[floor][btn] && !thisElevator.Requests[floor][btn] { // TODO: Check if this can be built upon
-					fmt.Println("Trying to complete")
-					completed = globalQueue.CompleteMyOrder(ButtonEvent{Floor: floor, Button: ButtonType(btn)}, *globalElevatorStates, myId)
-					// Added
-					if !completed {
-						(*prevMyElevatorQueue)[floor][btn] = true
-					} else {
-						(*prevMyElevatorQueue)[floor][btn] = false
-					}
-					// End of added
-				}*/
-			// New modification
-			switch ButtonType(btn) {
-			case BT_HallUp, BT_HallDown:
-				if (globalQueue.Hall[myId][floor][btn].State == Confirmed) && (globalQueue.Hall[myId][floor][btn].AssignedTo == myId) && !thisElevator.Requests[floor][btn] && thisElevator.Floor == floor {
-					fmt.Println("Trying to complete")
-					completed = globalQueue.CompleteMyOrder(ButtonEvent{Floor: floor, Button: ButtonType(btn)}, *globalElevatorStates, myId)
-					if !completed {
-						(*prevMyElevatorQueue)[floor][btn] = true
-					} else {
-						(*prevMyElevatorQueue)[floor][btn] = false
-					}
+	currentFloor := thisElevator.Floor
+	for btn := 0; btn < N_BUTTONS; btn++ {
+		switch ButtonType(btn) {
+		case BT_HallUp, BT_HallDown:
+			if (globalQueue.Hall[myID][currentFloor][btn].State == Confirmed) && (globalQueue.Hall[myID][currentFloor][btn].AssignedTo == myID) && !thisElevator.Requests[currentFloor][btn] {
+				completed = globalQueue.CompleteMyOrder(ButtonEvent{Floor: currentFloor, Button: ButtonType(btn)}, *globalElevatorStates, myID)
+				if !completed {
+					(*prevMyElevatorQueue)[currentFloor][btn] = true
+				} else {
+					(*prevMyElevatorQueue)[currentFloor][btn] = false
 				}
-			case BT_Cab:
-				if (globalQueue.Cab[myId][floor][myId] == Confirmed) && !thisElevator.Requests[floor][btn] && thisElevator.Floor == floor {
-					fmt.Println("Trying to complete")
-					completed = globalQueue.CompleteMyOrder(ButtonEvent{Floor: floor, Button: ButtonType(btn)}, *globalElevatorStates, myId)
-					// Added
-					if !completed {
-						(*prevMyElevatorQueue)[floor][btn] = true
-					} else {
-						(*prevMyElevatorQueue)[floor][btn] = false
-						fmt.Println("Completed")
-					}
-					// End of added
+			}
+
+		case BT_Cab:
+			if (globalQueue.Cab[myID][currentFloor][myID] == Confirmed) && !thisElevator.Requests[currentFloor][btn] {
+				completed = globalQueue.CompleteMyOrder(ButtonEvent{Floor: currentFloor, Button: ButtonType(btn)}, *globalElevatorStates, myID)
+				if !completed {
+					(*prevMyElevatorQueue)[currentFloor][btn] = true
+				} else {
+					(*prevMyElevatorQueue)[currentFloor][btn] = false
 				}
-			} // END OF New modification
+			}
 		}
 	}
-	//if completed { // TODO: Double check if this can be built upon
-	//	*prevMyElevatorQueue = thisElevator.Requests
-	//}
-	globalElevatorStates.UpdatePeer(ThisElevatorToElevatorPeer(thisElevator, myId), myId)
+	globalElevatorStates.UpdatePeer(ThisElevatorToElevatorPeer(thisElevator, myID), myID)
 	return completed
 }
 
-func handleButtonEvent(buttonEvent ButtonEvent, globalQueue *OrderQueue, globalElevatorStates ElevatorStates, myId int) {
-	assignTo := AssignNewOrder(buttonEvent, globalElevatorStates, globalQueue.Cab[myId], myId)
-	globalQueue.AppendNewOrder(buttonEvent, myId, globalElevatorStates, assignTo)
+func handleButtonEvent(myID int, buttonEvent ButtonEvent, globalQueue *OrderQueue, globalElevatorStates ElevatorStates) {
+	assignTo := AssignNewOrder(buttonEvent, globalElevatorStates, globalQueue.Cab[myID], myID)
+	globalQueue.AppendNewOrder(buttonEvent, myID, globalElevatorStates, assignTo)
 }
 
-func handleHallLights(globalQueue *OrderQueue, myId int) {
+func handleHallLights(myID int, globalQueue *OrderQueue) {
 	for floor := 0; floor < N_FLOORS; floor++ {
 		for btn := 0; btn < N_BUTTONS-1; btn++ {
-			if globalQueue.Hall[myId][floor][btn].State == Confirmed {
+			if globalQueue.Hall[myID][floor][btn].State == Confirmed {
 				SetButtonLamp(ButtonType(btn), floor, true)
 			} else {
 				SetButtonLamp(ButtonType(btn), floor, false)
 			}
-		}
-	}
-}
-
-func Global_State_Manager(
-	myId int,
-	supervisorEventChan <-chan SupervisorEvent,
-	receivedMessageChan <-chan Message,
-	thisElevatorUpdateChan <-chan Elevator,
-	buttonEventChan <-chan ButtonEvent,
-	myOrderListChan chan<- [N_FLOORS][N_BUTTONS]bool,
-	updateElevatorStateEvent chan<- ElevatorPeer,
-	updateOrderQueueEvent chan<- OrderQueue,
-	heartBeatPing chan<- int) {
-
-	// !!! er der her man skal ha backupPhase() og listen for other queuepahse()?
-
-	//init forskjellige ting
-	globalQueue := GenerateNewOrderQueue()
-	globalElevatorStates := GenerateNewElevatorStates(myId)
-	prevMyElevatorQueue := [N_FLOORS][N_BUTTONS]bool{}
-
-	updateOrderListTicker := time.NewTicker(100 * time.Millisecond) // TODO: Change to 10Hz
-	defer updateOrderListTicker.Stop()
-
-	heartBeatTicker := time.NewTicker(500 * time.Millisecond)
-	defer heartBeatTicker.Stop()
-
-	for {
-		select {
-		case supervisorEvent := <-supervisorEventChan:
-			handleSupervisorEvent(supervisorEvent, &globalQueue, &globalElevatorStates, myId)
-			updateElevatorStateEvent <- globalElevatorStates.Peers[myId]
-
-		case receivedMessage := <-receivedMessageChan:
-			handleReceivedMessage(receivedMessage, &globalQueue, &globalElevatorStates, myId)
-			myOrderListChan <- globalQueue.RetrieveMyOrders(myId)
-			updateOrderQueueEvent <- globalQueue
-
-		case thisElevatorUpdate := <-thisElevatorUpdateChan:
-			couldCompleteOrder := handleThisElevatorUpdate(thisElevatorUpdate, &globalQueue, &globalElevatorStates, &prevMyElevatorQueue, myId)
-			if !couldCompleteOrder {
-				myOrderListChan <- prevMyElevatorQueue
-			}
-			updateElevatorStateEvent <- globalElevatorStates.Peers[myId]
-			updateOrderQueueEvent <- globalQueue
-
-		case buttonEvent := <-buttonEventChan:
-			handleButtonEvent(buttonEvent, &globalQueue, globalElevatorStates, myId)
-			myOrderListChan <- globalQueue.RetrieveMyOrders(myId)
-			updateOrderQueueEvent <- globalQueue
-
-		case <-updateOrderListTicker.C:
-			globalQueue.TransitionAllCabOrders(myId, globalElevatorStates)
-			globalQueue.TransitionAllHallOrders(myId, globalElevatorStates)
-			handleHallLights(&globalQueue, myId)
-			myOrderListChan <- globalQueue.RetrieveMyOrders(myId)
-
-		case <-heartBeatTicker.C:
-			heartBeatPing <- myId
 		}
 	}
 }

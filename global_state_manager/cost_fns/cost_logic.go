@@ -24,7 +24,7 @@ type HRAInput struct {
 }
 
 func AssignNewOrder(newOrder ButtonEvent, elevatorStates ElevatorStates, cabOrders AllCabOrders, myID int) (IDAssigned int) {
-	IDAssigned = 0
+	IDAssigned = myID // Default if hallRequestAssigner crashes
 	switch newOrder.Button {
 	// If it is a CAB order, this elevator should do it.
 	case BT_Cab:
@@ -84,10 +84,13 @@ func AssignNewOrder(newOrder ButtonEvent, elevatorStates ElevatorStates, cabOrde
 				IDAssigned = iDToInt(string_ID)
 			}
 		}
+
+		// FOR TESTING. TODO: Remove after testing
 		fmt.Printf("output: \n")
 		for k, v := range *output {
 			fmt.Printf("%6v :  %+v\n", k, v)
 		}
+		// END OF TESTING
 		return
 
 	default:
@@ -137,7 +140,7 @@ func iDToInt(ID string) int {
 func makeHRAIInput() HRAInput {
 	return HRAInput{
 		HallRequests: [][2]bool{{false, false}, {false, false}, {false, false}, {false, false}},
-		// {{BT_HallUp, BT_HallDown}, {BT_HallUp, BT_HallDown}, ...}
+						// {{BT_HallUp, BT_HallDown}, {BT_HallUp, BT_HallDown}, ...}
 		States: map[string]HRAElevState{},
 	}
 }
@@ -150,6 +153,7 @@ func extractCabOrder(elevatorID int, cabOrders AllCabOrders) []bool {
 	return cabRequests
 }
 
+// TODO: Remove after testing
 func TestCostLogic() {
 	elevatorStates := ElevatorStates{
 		Peers: [N_ELEVATORS]ElevatorPeer{

@@ -81,7 +81,7 @@ func main() {
 		heartBeatPing)
 
 	// GSM goroutines
-	go Global_State_Manager(myID,
+	go GlobalStateManager(myID,
 		supervisorEvent,
 		receivedMessage,
 		stateToGSM,

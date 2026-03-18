@@ -27,8 +27,8 @@ type backupConn struct {
 }
 
 func NetworkSender(myID int,
-	updateElevatorStateEvent <-chan ElevatorPeer,
-	updateOrderQueueEvent <-chan OrderQueue,
+	newElevStateToSend <-chan ElevatorPeer,
+	newOrderQueueToSend <-chan OrderQueue,
 	heartBeatPing <-chan int) {
 
 	var sender networkSender
@@ -51,19 +51,19 @@ func NetworkSender(myID int,
 
 	for {
 		select {
-		case newElevator := <-updateElevatorStateEvent:
+		case newElevator := <-newElevStateToSend:
 			sender.updateMyElevator(newElevator)
 
 			msgToSend.UpdateMessage(sender.myElevator, sender.hallOrders, sender.cabOrders)
 
-		case newOrderQueue := <-updateOrderQueueEvent:
+		case newOrderQueue := <-newOrderQueueToSend:
 			sender.updateHallOrderQueue(newOrderQueue.Hall[myID])
 			sender.updateCabOrderQueue(newOrderQueue.Cab[myID])
 
 			msgToSend.UpdateMessage(sender.myElevator, sender.hallOrders, sender.cabOrders)
 
-		case heartBeat := <-heartBeatPing:
-			sendHeartBeat(heartBeat, &backup)
+		case <-heartBeatPing:
+			sendHeartBeat(myID, &backup)
 
 		case <-sendTicker.C:
 			sender.broadcastOnNetwork(msgToSend)
@@ -139,8 +139,8 @@ func initializeBackupConn(port string) backupConn {
 	return backup
 }
 
-func sendHeartBeat(myId int, backupConn *backupConn) error {
-	heartBeatMsg := []byte{byte(myId)}
+func sendHeartBeat(myID int, backupConn *backupConn) error {
+	heartBeatMsg := []byte{byte(myID)}
 
 	_, err := backupConn.conn.WriteToUDP(heartBeatMsg, backupConn.addr)
 	if err != nil {
