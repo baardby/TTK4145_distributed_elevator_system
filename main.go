@@ -30,9 +30,9 @@ func main() {
 
 	fmt.Println("Starting elevator with ID:", myID)
 
-	Init("localhost:15656", N_FLOORS)
-
 	BackupPhase(myID, primaryPID)
+
+	Init("localhost:15656", N_FLOORS)
 
 	// Creating communication channels
 	newButtonEvent := make(chan ButtonEvent)
