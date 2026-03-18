@@ -109,7 +109,7 @@ func handleReceivedMessage(
 
 	handleHallLights(myID, globalQueue)
 
-	needRedistribute := fromOkToHardwareFault(receivedMessage.Peer, oldPeer)
+	needRedistribute := (fromOkToHardwareFault(receivedMessage.Peer, oldPeer) || fromLostConnectionToHardwareFault(receivedMessage.Peer, oldPeer))
 	if needRedistribute && lowestIDOnNetwork(*globalElevatorStates) == myID {
 		globalQueue.RedistributeHallOrders(myID, *globalElevatorStates, AssignNewOrder)
 	}
@@ -118,6 +118,13 @@ func handleReceivedMessage(
 
 func fromOkToHardwareFault(newPeer ElevatorPeer, oldPeer ElevatorPeer) bool {
 	if oldPeer.WorkingStatus == StatusOK && newPeer.WorkingStatus == StatusHardwareFault {
+		return true
+	}
+	return false
+}
+
+func fromLostConnectionToHardwareFault(newPeer ElevatorPeer, oldPeer ElevatorPeer) bool {
+	if oldPeer.WorkingStatus == StatusLostConnection && newPeer.WorkingStatus == StatusHardwareFault {
 		return true
 	}
 	return false
